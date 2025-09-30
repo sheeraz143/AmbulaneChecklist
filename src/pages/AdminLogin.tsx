@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
 export default function AdminLogin(): JSX.Element {
-  const [username, setUsername] = useState<string>("Admin");
+  const [username] = useState<string>("Admin"); // username fixed as Admin
   const [password, setPassword] = useState<string>("");
   const [showPwd, setShowPwd] = useState<boolean>(false);
   const navigate = useNavigate();
@@ -16,40 +17,49 @@ export default function AdminLogin(): JSX.Element {
     }
   };
 
-
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm">
-        <h2 className="text-xl font-bold mb-4 text-center">Admin Login</h2>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500">
+      <div className="bg-white/90 backdrop-blur-lg p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-200">
+        <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-indigo-500 to-purple-600 text-transparent bg-clip-text">
+          Admin Login
+        </h2>
 
-        <label className="block mb-2 font-medium">Username</label>
+        {/* Username */}
+        <label className="block mb-2 text-gray-700 font-semibold">Username</label>
         <input
           type="text"
           value={username}
           disabled
-          className="border rounded w-full p-2 mb-4 bg-gray-100"
+          className="w-full border border-gray-300 rounded-lg p-3 mb-6 bg-gray-100 text-gray-600 cursor-not-allowed"
         />
 
-        <label className="block mb-2 font-medium">Password</label>
-        <div className="flex border rounded w-full p-2 mb-4 items-center">
+        {/* Password */}
+        <label className="block mb-2 text-gray-700 font-semibold">Password</label>
+        <div className="relative mb-6">
           <input
             type={showPwd ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="flex-1 outline-none"
+            className="w-full border border-gray-300 rounded-lg p-3 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            placeholder="Enter password"
           />
           <button
             type="button"
             onClick={() => setShowPwd((prev) => !prev)}
-            className="text-sm text-blue-600 ml-2"
+            className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
           >
-            {showPwd ? "Hide" : "Show"}
+            {showPwd ? (
+              <EyeSlashIcon className="h-5 w-5" />
+            ) : (
+              <EyeIcon className="h-5 w-5" />
+            )}
           </button>
         </div>
 
+        {/* Login Button */}
         <button
           onClick={handleLogin}
-          className="bg-blue-600 text-white w-full py-2 rounded-lg"
+          className="w-full py-3 rounded-lg font-bold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 transition-transform hover:scale-105 shadow-lg"
         >
           Login
         </button>

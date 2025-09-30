@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PlusIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 type Driver = {
   id: number;
@@ -26,6 +26,7 @@ export default function DriverList() {
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [newDriver, setNewDriver] = useState<Driver>({
     id: 0,
     staffId: "",
@@ -75,30 +76,49 @@ export default function DriverList() {
     return matchesStaff && matchesName && matchesMobile && matchesLicense;
   });
 
-  // Add new driver
-  const handleAddDriver = () => {
+  // Add or edit driver
+  const handleSaveDriver = () => {
     if (!newDriver.staffId || !newDriver.name || !newDriver.mobile || !newDriver.license) {
       alert("Please fill all fields");
       return;
     }
-    const driverToAdd = { ...newDriver, id: Date.now() };
-    setData((prev) => [...prev, driverToAdd]);
+
+    if (editingDriver) {
+      // Update existing
+      setData((prev) =>
+        prev.map((d) => (d.id === editingDriver.id ? { ...newDriver, id: editingDriver.id } : d))
+      );
+    } else {
+      // Add new
+      const driverToAdd = { ...newDriver, id: Date.now() };
+      setData((prev) => [...prev, driverToAdd]);
+    }
+
     setNewDriver({ id: 0, staffId: "", name: "", mobile: "", license: "" });
+    setEditingDriver(null);
     setIsModalOpen(false);
+  };
+
+  const startEdit = (driver: Driver) => {
+    setEditingDriver(driver);
+    setNewDriver(driver);
+    setIsModalOpen(true);
   };
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4">Driver List</h2>
+      <h2 className="text-2xl font-bold mb-6 text-center bg-gradient-to-r from-indigo-500 to-purple-600 text-transparent bg-clip-text">
+        Driver List
+      </h2>
 
       {/* Top Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2">
         {/* Left: Delete button */}
         <button
           onClick={handleDeleteSelected}
           disabled={selected.length === 0}
-          className={`px-4 py-2 rounded text-white ${
-            selected.length > 0 ? "bg-red-600 hover:bg-red-700" : "bg-gray-400 cursor-not-allowed"
+          className={`px-4 py-2 rounded-lg text-white font-semibold ${
+            selected.length > 0 ? "bg-red-600 hover:bg-red-700 shadow" : "bg-gray-400 cursor-not-allowed"
           }`}
         >
           Delete Selected
@@ -107,132 +127,162 @@ export default function DriverList() {
         {/* Right: Add button + Filters */}
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            onClick={() => {
+              setEditingDriver(null);
+              setIsModalOpen(true);
+            }}
+            className="flex items-center px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-700 shadow"
           >
             <PlusIcon className="h-5 w-5 mr-1" /> Add Driver
           </button>
           <input
             type="text"
-            placeholder="Filter by Staff ID"
+            placeholder="Filter Staff ID"
             value={filterStaffId}
             onChange={(e) => setFilterStaffId(e.target.value)}
-            className="border p-2 rounded text-sm"
+            className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
           />
           <input
             type="text"
-            placeholder="Filter by Name"
+            placeholder="Filter Name"
             value={filterName}
             onChange={(e) => setFilterName(e.target.value)}
-            className="border p-2 rounded text-sm"
+            className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
           />
           <input
             type="text"
-            placeholder="Filter by Mobile"
+            placeholder="Filter Mobile"
             value={filterMobile}
             onChange={(e) => setFilterMobile(e.target.value)}
-            className="border p-2 rounded text-sm"
+            className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
           />
           <input
             type="text"
-            placeholder="Filter by License"
+            placeholder="Filter License"
             value={filterLicense}
             onChange={(e) => setFilterLicense(e.target.value)}
-            className="border p-2 rounded text-sm"
+            className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
           />
         </div>
       </div>
 
       {/* Table */}
-      <table className="w-full border border-black text-sm">
-        <thead className="bg-gray-200">
-          <tr>
-            <th className="border border-black p-2 text-center">
-              <input
-                type="checkbox"
-                checked={selectAll && filteredData.length > 0}
-                onChange={toggleSelectAll}
-              />
-            </th>
-            <th className="border border-black p-2">Staff ID</th>
-            <th className="border border-black p-2">Driver Name</th>
-            <th className="border border-black p-2">Mobile</th>
-            <th className="border border-black p-2">License No</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredData.map((row) => (
-            <tr key={row.id}>
-              <td className="border border-black p-2 text-center">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse bg-white shadow-md rounded-xl overflow-hidden text-sm">
+          <thead>
+            <tr className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-left">
+              <th className="p-3 text-center">
                 <input
                   type="checkbox"
-                  checked={selected.includes(row.id)}
-                  onChange={() => toggleRow(row.id)}
+                  checked={selectAll && filteredData.length > 0}
+                  onChange={toggleSelectAll}
                 />
-              </td>
-              <td className="border border-black p-2">{row.staffId}</td>
-              <td className="border border-black p-2">{row.name}</td>
-              <td className="border border-black p-2">{row.mobile}</td>
-              <td className="border border-black p-2">{row.license}</td>
+              </th>
+              <th className="p-3">Staff ID</th>
+              <th className="p-3">Driver Name</th>
+              <th className="p-3">Mobile</th>
+              <th className="p-3">License No</th>
+              <th className="p-3 text-center">Actions</th>
             </tr>
-          ))}
-          {filteredData.length === 0 && (
-            <tr>
-              <td colSpan={5} className="text-center py-4 text-gray-500">
-                No records found
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredData.map((row, i) => (
+              <tr key={row.id} className={`${i % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-indigo-50`}>
+                <td className="p-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(row.id)}
+                    onChange={() => toggleRow(row.id)}
+                  />
+                </td>
+                <td className="p-3">{row.staffId}</td>
+                <td className="p-3">{row.name}</td>
+                <td className="p-3">{row.mobile}</td>
+                <td className="p-3">{row.license}</td>
+                <td className="p-3 text-center">
+                  <button
+                    onClick={() => startEdit(row)}
+                    className="text-indigo-600 hover:text-indigo-800 mr-2"
+                    title="Edit"
+                  >
+                    <PencilIcon className="h-5 w-5 inline-block" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelected([row.id]);
+                      handleDeleteSelected();
+                    }}
+                    className="text-red-600 hover:text-red-800"
+                    title="Delete"
+                  >
+                    <TrashIcon className="h-5 w-5 inline-block" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {filteredData.length === 0 && (
+              <tr>
+                <td colSpan={6} className="text-center py-4 text-gray-500">
+                  No records found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
-      {/* Modal Popup for Add Driver */}
+      {/* Modal Popup for Add/Edit Driver */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-96">
-            <h3 className="text-lg font-bold mb-4">Add New Driver</h3>
-            <div className="space-y-3">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-96">
+            <h3 className="text-lg font-bold mb-4">
+              {editingDriver ? "Edit Driver" : "Add New Driver"}
+            </h3>
+            <div className="space-y-4">
               <input
                 type="text"
                 placeholder="Staff ID"
                 value={newDriver.staffId}
                 onChange={(e) => setNewDriver({ ...newDriver, staffId: e.target.value })}
-                className="border p-2 rounded w-full"
+                className="border p-2 rounded w-full focus:ring-2 focus:ring-indigo-400"
               />
               <input
                 type="text"
                 placeholder="Driver Name"
                 value={newDriver.name}
                 onChange={(e) => setNewDriver({ ...newDriver, name: e.target.value })}
-                className="border p-2 rounded w-full"
+                className="border p-2 rounded w-full focus:ring-2 focus:ring-indigo-400"
               />
               <input
                 type="text"
                 placeholder="Mobile"
                 value={newDriver.mobile}
                 onChange={(e) => setNewDriver({ ...newDriver, mobile: e.target.value })}
-                className="border p-2 rounded w-full"
+                className="border p-2 rounded w-full focus:ring-2 focus:ring-indigo-400"
               />
               <input
                 type="text"
                 placeholder="License No"
                 value={newDriver.license}
                 onChange={(e) => setNewDriver({ ...newDriver, license: e.target.value })}
-                className="border p-2 rounded w-full"
+                className="border p-2 rounded w-full focus:ring-2 focus:ring-indigo-400"
               />
             </div>
-            <div className="flex justify-end space-x-2 mt-4">
+            <div className="flex justify-end space-x-3 mt-6">
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setEditingDriver(null);
+                }}
                 className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
               >
                 Cancel
               </button>
               <button
-                onClick={handleAddDriver}
-                className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+                onClick={handleSaveDriver}
+                className="px-4 py-2 rounded bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 shadow"
               >
-                Add Driver
+                {editingDriver ? "Save Changes" : "Add Driver"}
               </button>
             </div>
           </div>

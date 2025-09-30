@@ -1,115 +1,170 @@
-import { useState, useMemo } from "react";
-import { NavLink, Routes, Route, useNavigate, Navigate, useLocation } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import {
+  NavLink,
+  Routes,
+  Route,
+  useNavigate,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import Transactions from "./admin/Transactions";
 import DriverList from "./admin/DriverList";
 import ChangePassword from "./admin/ChangePassword";
-import {
-  Bars3Icon,
-  ArrowLeftOnRectangleIcon,
-  ChevronDownIcon,
-} from "@heroicons/react/24/outline";
 import Alpha from "./admin/Alpha";
 import Lighting from "./admin/Lighting";
 import Tools from "./admin/Tools";
 import Medic from "./admin/Medic";
 import Items from "./admin/Items";
+import {
+  Bars3Icon,
+  ArrowLeftOnRectangleIcon,
+  ChevronDownIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 
 export default function AdminDashboard(): JSX.Element {
-  const [collapsed, setCollapsed] = useState(false);
-  const [openMaster, setOpenMaster] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);   // desktop collapse
+  const [mobileOpen, setMobileOpen] = useState(false); // mobile drawer
+  const [isMobile, setIsMobile] = useState(false);
+  const [openMaster, setOpenMaster] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ Map pathname → page title
+  // Watch window width for mobile behaviour
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Dynamic page title
   const pageTitle = useMemo(() => {
     if (location.pathname.includes("transactions")) return "Transactions";
     if (location.pathname.includes("drivers")) return "Driver List";
+    if (location.pathname.includes("alpha")) return "Alpha";
+    if (location.pathname.includes("lighting")) return "Lighting & Electrical";
+    if (location.pathname.includes("tools")) return "Tools & Exterior";
+    if (location.pathname.includes("medic")) return "Medic";
+    if (location.pathname.includes("items")) return "Items";
     if (location.pathname.includes("change-password")) return "Change Password";
     return "Dashboard";
   }, [location.pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem("adminAuth");
-    navigate("/admin-login");
+    navigate("/");
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-100 via-gray-100 to-slate-200">
       {/* Sidebar */}
       <aside
-        className={`bg-gray-800 text-white transition-all duration-300 ${collapsed ? "w-16" : "w-64"
-          }`}
+        className={`fixed md:static z-30 top-0 left-0 h-full md:h-auto
+        transition-all duration-300 ease-in-out bg-gradient-to-b from-indigo-700 via-indigo-800 to-indigo-900 text-white shadow-2xl
+        ${isMobile ? (mobileOpen ? "w-64" : "w-0") : collapsed ? "w-20" : "w-72"}
+        overflow-hidden`}
       >
-        <div className="flex items-center justify-between p-4">
-          {!collapsed && <h2 className="text-lg font-bold">Admin Panel</h2>}
-          <button
-            onClick={() => setCollapsed((prev) => !prev)}
-            className="text-white"
-          >
-            <Bars3Icon className="h-6 w-6" />
-          </button>
+        {/* Sidebar Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-indigo-600">
+          {!collapsed && !isMobile && (
+            <h2 className="text-xl font-extrabold tracking-wide bg-gradient-to-r from-indigo-200 to-cyan-200 bg-clip-text text-transparent">
+              Admin Panel
+            </h2>
+          )}
+          {/* Desktop toggle */}
+          {!isMobile && (
+            <button
+              onClick={() => setCollapsed((p) => !p)}
+              className="p-1 rounded hover:bg-indigo-600 transition-colors"
+            >
+              <Bars3Icon className="h-7 w-7 text-indigo-200" />
+            </button>
+          )}
+          {/* Mobile close */}
+          {isMobile && (
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="p-1 rounded hover:bg-indigo-600 transition-colors"
+            >
+              <XMarkIcon className="h-7 w-7 text-indigo-200" />
+            </button>
+          )}
         </div>
 
-        <nav className="flex flex-col space-y-2 p-2">
+        {/* Navigation */}
+        <nav className="flex flex-col mt-4 space-y-1">
           <NavLink
             to="transactions"
+            onClick={() => isMobile && setMobileOpen(false)}
             className={({ isActive }) =>
-              `p-2 rounded flex items-center ${isActive ? "bg-gray-600" : "hover:bg-gray-700"
+              `mx-3 flex items-center rounded-lg px-4 py-2 text-sm md:text-base transition-colors duration-200 ${
+                isActive
+                  ? "bg-gradient-to-r from-indigo-500 to-indigo-700 text-white shadow-md"
+                  : "hover:bg-indigo-600 hover:text-white text-indigo-200"
               }`
             }
           >
-            📑 {!collapsed && <span className="ml-2">Transactions</span>}
+            📑 {!collapsed && <span className="ml-3 font-medium">Transactions</span>}
           </NavLink>
 
-          {/* Master List submenu */}
-          <div>
+          {/* Master List */}
+          <div className="mx-3">
             <button
-              onClick={() => setOpenMaster((prev) => !prev)}
-              className="p-2 w-full flex items-center justify-between hover:bg-gray-700 rounded"
+              onClick={() => setOpenMaster((p) => !p)}
+              className="w-full flex items-center justify-between px-4 py-2 text-indigo-200 hover:bg-indigo-600 hover:text-white rounded-lg transition-colors"
             >
               <span className="flex items-center">
-                📂 {!collapsed && <span className="ml-2">Master List</span>}
+                📂 {!collapsed && <span className="ml-3 font-medium">Master List</span>}
               </span>
               {!collapsed && (
                 <ChevronDownIcon
-                  className={`h-4 w-4 transition-transform ${openMaster ? "rotate-180" : ""}`}
+                  className={`h-4 w-4 transform transition-transform ${openMaster ? "rotate-180" : ""}`}
                 />
               )}
             </button>
 
             {openMaster && !collapsed && (
-              <div className="ml-6 mt-1 flex flex-col space-y-1">
-                <NavLink to="drivers" className={({ isActive }) => `p-2 rounded flex items-center ${isActive ? "bg-gray-600" : "hover:bg-gray-700"}`}>
-                  👨‍✈️ <span className="ml-2">Driver List</span>
-                </NavLink>
-                <NavLink to="alpha" className={({ isActive }) => `p-2 rounded flex items-center ${isActive ? "bg-gray-600" : "hover:bg-gray-700"}`}>
-                  🔤 <span className="ml-2">Alpha</span>
-                </NavLink>
-                <NavLink to="lighting" className={({ isActive }) => `p-2 rounded flex items-center ${isActive ? "bg-gray-600" : "hover:bg-gray-700"}`}>
-                  💡 <span className="ml-2">Lighting & Electrical</span>
-                </NavLink>
-                <NavLink to="tools" className={({ isActive }) => `p-2 rounded flex items-center ${isActive ? "bg-gray-600" : "hover:bg-gray-700"}`}>
-                  🛠️ <span className="ml-2">Tools & Exterior</span>
-                </NavLink>
-                <NavLink to="medic" className={({ isActive }) => `p-2 rounded flex items-center ${isActive ? "bg-gray-600" : "hover:bg-gray-700"}`}>
-                  🩺 <span className="ml-2">Medic</span>
-                </NavLink>
-                <NavLink to="items" className={({ isActive }) => `p-2 rounded flex items-center ${isActive ? "bg-gray-600" : "hover:bg-gray-700"}`}>
-                  📦 <span className="ml-2">Items</span>
-                </NavLink>
+              <div className="ml-6 mt-2 flex flex-col space-y-1">
+                {[
+                  { path: "drivers", icon: "👨‍✈️", name: "Driver List" },
+                  { path: "alpha", icon: "🔤", name: "Alpha" },
+                  { path: "lighting", icon: "💡", name: "Lighting & Electrical" },
+                  { path: "tools", icon: "🛠️", name: "Tools & Exterior" },
+                  { path: "medic", icon: "🩺", name: "Medic" },
+                  { path: "items", icon: "📦", name: "Items" },
+                ].map(({ path, icon, name }) => (
+                  <NavLink
+                    key={path}
+                    to={path}
+                    onClick={() => isMobile && setMobileOpen(false)}
+                    className={({ isActive }) =>
+                      `px-4 py-2 rounded-md flex items-center text-sm md:text-base transition-colors ${
+                        isActive
+                          ? "bg-indigo-500 text-white shadow-md"
+                          : "hover:bg-indigo-600 hover:text-white text-indigo-200"
+                      }`
+                    }
+                  >
+                    {icon} <span className="ml-2">{name}</span>
+                  </NavLink>
+                ))}
               </div>
             )}
           </div>
 
-
           <NavLink
             to="change-password"
+            onClick={() => isMobile && setMobileOpen(false)}
             className={({ isActive }) =>
-              `p-2 rounded flex items-center ${isActive ? "bg-gray-600" : "hover:bg-gray-700"
+              `mx-3 flex items-center rounded-lg px-4 py-2 text-sm md:text-base transition-colors duration-200 ${
+                isActive
+                  ? "bg-gradient-to-r from-indigo-500 to-indigo-700 text-white shadow-md"
+                  : "hover:bg-indigo-600 hover:text-white text-indigo-200"
               }`
             }
           >
-            🔑 {!collapsed && <span className="ml-2">Change Password</span>}
+            🔑 {!collapsed && <span className="ml-3 font-medium">Change Password</span>}
           </NavLink>
         </nav>
       </aside>
@@ -117,19 +172,31 @@ export default function AdminDashboard(): JSX.Element {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Navbar */}
-        <header className="bg-white shadow p-4 flex justify-between items-center">
-          <h1 className="text-lg font-bold">{pageTitle}</h1>
+        <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-md">
+          <div className="flex items-center space-x-4">
+            {isMobile && (
+              <button
+                onClick={() => setMobileOpen(true)}
+                className="p-1 rounded-md text-indigo-700 hover:bg-gray-200 focus:outline-none"
+              >
+                <Bars3Icon className="h-7 w-7" />
+              </button>
+            )}
+            <h1 className="text-lg sm:text-2xl font-bold text-indigo-800">
+              {pageTitle}
+            </h1>
+          </div>
           <button
             onClick={handleLogout}
-            className="flex items-center space-x-2 text-red-600 hover:text-red-800"
+            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-lg shadow hover:scale-105 transition-transform text-sm sm:text-base"
           >
             <ArrowLeftOnRectangleIcon className="h-5 w-5" />
             <span>Logout</span>
           </button>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 p-6">
+        {/* Routes */}
+        <main className="flex-1 p-4 sm:p-6 bg-gradient-to-br from-slate-50 via-gray-100 to-slate-200 overflow-auto">
           <Routes>
             <Route path="transactions" element={<Transactions />} />
             <Route path="drivers" element={<DriverList />} />
@@ -141,7 +208,6 @@ export default function AdminDashboard(): JSX.Element {
             <Route path="change-password" element={<ChangePassword />} />
             <Route index element={<Navigate to="transactions" replace />} />
           </Routes>
-
         </main>
       </div>
     </div>

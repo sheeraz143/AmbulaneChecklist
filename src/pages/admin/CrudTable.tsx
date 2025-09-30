@@ -59,9 +59,8 @@ export default function CrudTable({ title, fields }: CrudTableProps) {
         <button
           onClick={handleDeleteSelected}
           disabled={selected.length === 0}
-          className={`px-4 py-2 rounded text-white ${
-            selected.length > 0 ? "bg-red-600 hover:bg-red-700" : "bg-gray-400 cursor-not-allowed"
-          }`}
+          className={`px-4 py-2 rounded text-white ${selected.length > 0 ? "bg-red-600 hover:bg-red-700" : "bg-gray-400 cursor-not-allowed"
+            }`}
         >
           Delete Selected
         </button>
@@ -74,45 +73,25 @@ export default function CrudTable({ title, fields }: CrudTableProps) {
       </div>
 
       {/* Table */}
-      <table className="w-full border border-black text-sm">
-        <thead className="bg-gray-200">
-          <tr>
-            <th className="border border-black p-2 text-center">
-              <input
-                type="checkbox"
-                checked={selectAll && data.length > 0}
-                onChange={toggleSelectAll}
-              />
-            </th>
-            {fields.map((f) => (
-              <th key={f.key} className="border border-black p-2">{f.label}</th>
-            ))}
+      <table className="w-full border-collapse bg-white shadow-md rounded-lg overflow-hidden text-sm">
+        <thead>
+          <tr className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-left">
+            <th className="px-4 py-3">Date</th>
+            <th className="px-4 py-3">Staff ID</th>
+            <th className="px-4 py-3">Driver</th>
           </tr>
         </thead>
         <tbody>
-          {data.map((row) => (
-            <tr key={row.id}>
-              <td className="border border-black p-2 text-center">
-                <input
-                  type="checkbox"
-                  checked={selected.includes(row.id)}
-                  onChange={() => toggleRow(row.id)}
-                />
-              </td>
-              {fields.map((f) => (
-                <td key={f.key} className="border border-black p-2">{row[f.key]}</td>
-              ))}
+          {data.map((row, i) => (
+            <tr key={row.id} className={`${i % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-indigo-50`}>
+              <td className="px-4 py-2">{row.date}</td>
+              <td className="px-4 py-2">{row.staffId}</td>
+              <td className="px-4 py-2">{row.driver}</td>
             </tr>
           ))}
-          {data.length === 0 && (
-            <tr>
-              <td colSpan={fields.length + 1} className="text-center py-4 text-gray-500">
-                No records found
-              </td>
-            </tr>
-          )}
         </tbody>
       </table>
+
 
       {/* Modal */}
       {isModalOpen && (

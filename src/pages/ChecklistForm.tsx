@@ -2,18 +2,15 @@ import React from "react";
 import { useForm, Controller } from "react-hook-form";
 
 type ChecklistFormData = {
-  // Top form
   alpha: string;
   driver: string;
   mobNo: string;
   date: string;
   staffId: string;
-  mileageStart: string;
-  nextServiceMileage: string;
-  atfOil: string;
+  mileageStart: number;
+  nextServiceMileage: number;
+  atfOil: number;
   driverRemarks: string;
-
-  // Driver checklist items
   tailLights: boolean;
   turnSignals: boolean;
   horns: boolean;
@@ -28,8 +25,6 @@ type ChecklistFormData = {
   bodyCondition: boolean;
   tyrePressure: boolean;
   tyreCondition: boolean;
-
-  // Medic section
   medicName: string;
   medicStaffId: string;
   mainOxygenTank: boolean;
@@ -45,8 +40,6 @@ type ChecklistFormData = {
   suctionPumpSet: boolean;
   fireStopExtinguisher: boolean;
   dRingHooks: boolean;
-
-  // Quantities
   glovesQty: string;
   billingQty: string;
   maskQty: string;
@@ -55,11 +48,35 @@ type ChecklistFormData = {
   handSanitizerQty: string;
   gauzeQty: string;
   oxygenMaskQty: string;
-
   medicRemarks: string;
 };
 
-export default function ChecklistForm() {
+// ✅ Compact reusable checkbox
+function CheckboxItem({
+  name,
+  control,
+  label,
+}: { name: keyof ChecklistFormData; control: any; label: string }) {
+  return (
+    <label className="flex items-center gap-1 text-gray-700 text-xs sm:text-sm">
+      <Controller
+        name={name}
+        control={control}
+        render={({ field }) => (
+          <input
+            type="checkbox"
+            checked={!!field.value}
+            onChange={(e) => field.onChange(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          />
+        )}
+      />
+      {label}
+    </label>
+  );
+}
+
+export default function ChecklistForm(): JSX.Element {
   const {
     register,
     handleSubmit,
@@ -70,13 +87,12 @@ export default function ChecklistForm() {
       alpha: "A1",
       driver: "John Doe",
       mobNo: "9876543210",
-      date: new Date().toISOString().slice(0, 10), // today
+      date: new Date().toISOString().slice(0, 10),
       staffId: "S123",
-      mileageStart: "",
-      nextServiceMileage: "",
-      atfOil: "",
+      mileageStart: undefined,
+      nextServiceMileage: undefined,
+      atfOil: undefined,
       driverRemarks: "",
-
       tailLights: false,
       turnSignals: false,
       horns: false,
@@ -91,7 +107,6 @@ export default function ChecklistForm() {
       bodyCondition: false,
       tyrePressure: false,
       tyreCondition: false,
-
       medicName: "",
       medicStaffId: "",
       mainOxygenTank: false,
@@ -107,7 +122,6 @@ export default function ChecklistForm() {
       suctionPumpSet: false,
       fireStopExtinguisher: false,
       dRingHooks: false,
-
       glovesQty: "1",
       billingQty: "2",
       maskQty: "1",
@@ -116,222 +130,159 @@ export default function ChecklistForm() {
       handSanitizerQty: "1",
       gauzeQty: "1",
       oxygenMaskQty: "1",
-
       medicRemarks: "",
     },
   });
 
-  const onSubmit = (data: ChecklistFormData) => {
+  const onSubmit = async (data: ChecklistFormData) => {
     console.log("Form submitted:", data);
-    alert("Form submitted! Check console for output.");
+    alert("✅ Form submitted successfully!");
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen p-4">
-      <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl mx-auto space-y-6">
-        {/* TITLE */}
-        <h1 className="text-2xl font-bold text-center mb-4">Ambulance Checklist</h1>
+    <div className="from-indigo-500 via-purple-600 to-pink-500 min-h-screen p-3 sm:p-6 flex justify-center">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="w-full max-w-5xl bg-white rounded-xl shadow-xl p-4 sm:p-6 space-y-4 sm:space-y-6 text-xs sm:text-sm"
+      >
+        <h1 className="text-xl sm:text-3xl font-bold text-center bg-gradient-to-r from-indigo-600 to-pink-500 text-transparent bg-clip-text">
+          🚑 Ambulance Checklist
+        </h1>
 
-        {/* Driver Section */}
-        <div className="bg-white border-2 border-black p-4 space-y-4">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="font-bold flex flex-col">
-                Name:
+        {/* === Driver Section === */}
+        <section className="bg-white rounded-md border border-gray-200 shadow p-3 sm:p-4 space-y-3 sm:space-y-4">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800 border-b pb-2">Driver Details</h2>
+
+          {/* Basic details */}
+          <div className="grid sm:grid-cols-2 gap-3">
+            {[
+              { label: "Driver Name", field: "driver" },
+              { label: "Mobile No", field: "mobNo" },
+              { label: "Date", field: "date", type: "date" },
+              { label: "Staff ID", field: "staffId" },
+              { label: "Alpha", field: "alpha" },
+            ].map(({ label, field, type }) => (
+              <label key={field} className="block">
+                <span className="font-medium">{label}</span>
                 <input
-                  {...register("driver")}
-                  className="border-b border-black outline-none px-1 py-1 w-full bg-gray-100"
+                  type={type || "text"}
+                  {...register(field as keyof ChecklistFormData)}
                   readOnly
+                  className="mt-1 w-full rounded-md border-gray-300 bg-gray-100 p-2 text-xs sm:text-sm"
                 />
               </label>
-
-              <label className="font-bold flex flex-col">
-                Mob No:
-                <input
-                  {...register("mobNo")}
-                  className="border-b border-black outline-none px-1 py-1 w-full bg-gray-100"
-                  readOnly
-                />
-              </label>
-            </div>
-
-            <div className="space-y-2">
-              <label className="font-bold flex flex-col">
-                DATE:
-                <input
-                  type="date"
-                  {...register("date")}
-                  className="border-b border-black outline-none px-1 py-1 w-full bg-gray-100"
-                  readOnly
-                />
-              </label>
-
-              <label className="font-bold flex flex-col">
-                STAFF ID:
-                <input
-                  {...register("staffId")}
-                  className="border-b border-black outline-none px-1 py-1 w-full bg-gray-100"
-                  readOnly
-                />
-              </label>
-
-              <label className="font-bold flex flex-col">
-                ALPHA:
-                <input
-                  {...register("alpha")}
-                  className="border-b border-black outline-none px-1 py-1 w-full bg-gray-100"
-                  readOnly
-                />
-              </label>
-            </div>
+            ))}
           </div>
 
           {/* Checklist Items */}
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-            {/* Lighting & Electrical */}
-            <div className="space-y-2">
-              <h3 className="font-bold underline">Lighting & Electrical</h3>
-              {[
-                "tailLights",
-                "turnSignals",
-                "horns",
-                "wipers",
-                "reverseLights",
-                "rearInteriorLighting",
-                "rearFan",
-                "airCon",
-              ].map((field) => (
-                <div key={field} className="flex items-center space-x-2 text-sm">
-                  <Controller
+          <div className="grid md:grid-cols-2 gap-4 mt-2">
+            <div>
+              <h3 className="font-semibold text-indigo-700 mb-2 text-sm">Lighting & Electrical</h3>
+              <div className="grid grid-cols-2 gap-1">
+                {[
+                  "tailLights",
+                  "turnSignals",
+                  "horns",
+                  "wipers",
+                  "reverseLights",
+                  "rearInteriorLighting",
+                  "rearFan",
+                  "airCon",
+                ].map((field) => (
+                  <CheckboxItem
+                    key={field}
                     name={field as keyof ChecklistFormData}
                     control={control}
-                    render={({ field: ctrlField }) => (
-                      <input
-                        type="checkbox"
-                        checked={!!ctrlField.value}
-                        onChange={(e) => ctrlField.onChange(e.target.checked)}
-                      />
-                    )}
+                    label={field}
                   />
-                  <span>{field}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
-            {/* Tools & Exterior */}
-            <div className="space-y-2">
-              <h3 className="font-bold underline">Tools & Exterior</h3>
-              {[
-                "jackHandle",
-                "breakdownSign",
-                "spareTyre",
-                "bodyCondition",
-                "tyrePressure",
-                "tyreCondition",
-              ].map((field) => (
-                <div key={field} className="flex items-center space-x-2 text-sm">
-                  <Controller
+            <div>
+              <h3 className="font-semibold text-indigo-700 mb-2 text-sm">Tools & Exterior</h3>
+              <div className="grid grid-cols-2 gap-1">
+                {[
+                  "jackHandle",
+                  "breakdownSign",
+                  "spareTyre",
+                  "bodyCondition",
+                  "tyrePressure",
+                  "tyreCondition",
+                ].map((field) => (
+                  <CheckboxItem
+                    key={field}
                     name={field as keyof ChecklistFormData}
                     control={control}
-                    render={({ field: ctrlField }) => (
-                      <input
-                        type="checkbox"
-                        checked={!!ctrlField.value}
-                        onChange={(e) => ctrlField.onChange(e.target.checked)}
-                      />
-                    )}
+                    label={field}
                   />
-                  <span>{field}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
 
           {/* Mileage & Remarks */}
-          <div className="grid sm:grid-cols-2 gap-4 mt-4">
+          <div className="grid md:grid-cols-2 gap-4 mt-3">
             <div className="space-y-2">
-              <label className="flex flex-col font-bold">
-                Mileage Start:
-                <input
-                  type="text"
-                  {...register("mileageStart", {
-                    required: "Mileage Start is required",
-                    pattern: { value: /^[0-9]+$/, message: "Must be a number" },
-                  })}
-                  className="border-b border-black outline-none px-1 py-1 w-full"
-                />
-                {errors.mileageStart && (
-                  <p className="text-red-600 text-sm">{errors.mileageStart.message}</p>
-                )}
-              </label>
-
-              <label className="flex flex-col font-bold">
-                Next Service Mileage EO:
-                <input
-                  type="text"
-                  {...register("nextServiceMileage", {
-                    required: "Next Service Mileage is required",
-                    pattern: { value: /^[0-9]+$/, message: "Must be a number" },
-                  })}
-                  className="border-b border-black outline-none px-1 py-1 w-full"
-                />
-                {errors.nextServiceMileage && (
-                  <p className="text-red-600 text-sm">{errors.nextServiceMileage.message}</p>
-                )}
-              </label>
-
-              <label className="flex flex-col font-bold">
-                ATF Oil:
-                <input
-                  type="text"
-                  {...register("atfOil", {
-                    required: "ATF Oil value is required",
-                    pattern: { value: /^[0-9]+$/, message: "Must be a number" },
-                  })}
-                  className="border-b border-black outline-none px-1 py-1 w-full"
-                />
-                {errors.atfOil && (
-                  <p className="text-red-600 text-sm">{errors.atfOil.message}</p>
-                )}
-              </label>
+              {[
+                { field: "mileageStart", label: "Mileage Start" },
+                { field: "nextServiceMileage", label: "Next Service Mileage EO" },
+                { field: "atfOil", label: "ATF Oil" },
+              ].map(({ field, label }) => (
+                <label key={field} className="block">
+                  <span className="font-medium">{label}</span>
+                  <input
+                    type="number"
+                    {...register(field as keyof ChecklistFormData, {
+                      required: `${label} is required`,
+                      valueAsNumber: true,
+                    })}
+                    className="mt-1 w-full rounded-md border-gray-300 p-2 text-xs sm:text-sm"
+                  />
+                  {errors[field as keyof ChecklistFormData] && (
+                    <p className="text-red-600 text-xs mt-1">
+                      {(errors[field as keyof ChecklistFormData] as any)?.message}
+                    </p>
+                  )}
+                </label>
+              ))}
             </div>
 
-            <div className="space-y-2">
-              <label className="font-bold flex flex-col">
-                Remarks:
-                <textarea
-                  {...register("driverRemarks")}
-                  className="border border-black outline-none px-2 py-1 w-full resize-none h-32"
-                  placeholder="Enter any remarks..."
-                />
-              </label>
-            </div>
+            <label className="block">
+              <span className="font-medium">Remarks</span>
+              <textarea
+                {...register("driverRemarks")}
+                className="mt-1 w-full rounded-md border-gray-300 p-2 h-24 text-xs sm:text-sm"
+              />
+            </label>
           </div>
-        </div>
+        </section>
 
-        {/* Medic Section */}
-        <div className="bg-white border-2 border-black p-4 space-y-4">
-          <div className="grid sm:grid-cols-2 gap-4">
-            {/* Left: Medic Info */}
-            <label className="flex flex-col font-bold">
-              MEDIC:
+        {/* === Medic Section === */}
+        <section className="bg-white rounded-md border border-gray-200 shadow p-3 sm:p-4 space-y-3 sm:space-y-4">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800 border-b pb-2">Medic Section</h2>
+
+          {/* Medic Info */}
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="block">
+              <span className="font-medium">Medic Name</span>
               <input
                 {...register("medicName")}
-                className="border-b border-black outline-none px-1 py-1 w-full"
+                className="mt-1 w-full rounded-md border-gray-300 p-2 text-xs sm:text-sm"
               />
             </label>
-            <label className="flex flex-col font-bold">
-              STAFF ID:
+            <label className="block">
+              <span className="font-medium">Medic Staff ID</span>
               <input
                 {...register("medicStaffId")}
-                className="border-b border-black outline-none px-1 py-1 w-full"
+                className="mt-1 w-full rounded-md border-gray-300 p-2 text-xs sm:text-sm"
               />
             </label>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
-            {/* Medic Checklist */}
-            <div className="grid sm:grid-cols-2 md:grid-cols-1 gap-4 mt-4">
+          {/* Checklist + Items Table */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-1">
               {[
                 "mainOxygenTank",
                 "portableOxygenTank",
@@ -347,42 +298,21 @@ export default function ChecklistForm() {
                 "fireStopExtinguisher",
                 "dRingHooks",
               ].map((field) => (
-                <div key={field} className="flex items-center space-x-2 text-sm">
-                  <Controller
-                    name={field as keyof ChecklistFormData}
-                    control={control}
-                    render={({ field: ctrlField }) => (
-                      <input
-                        type="checkbox"
-                        checked={!!ctrlField.value}
-                        onChange={(e) => ctrlField.onChange(e.target.checked)}
-                      />
-                    )}
-                  />
-                  <span>{field}</span>
-                </div>
+                <CheckboxItem
+                  key={field}
+                  name={field as keyof ChecklistFormData}
+                  control={control}
+                  label={field}
+                />
               ))}
-
-              {/* Remarks */}
-              <div className="mt-4">
-                <label className="font-bold flex flex-col">
-                  Remarks:
-                  <textarea
-                    {...register("medicRemarks")}
-                    className="border border-black outline-none px-2 py-1 w-full resize-none h-24"
-                    placeholder="Enter any remarks..."
-                  />
-                </label>
-              </div>
             </div>
 
-            {/* Table Section */}
-            <div className="mt-4 overflow-x-auto">
-              <table className="border border-black w-full text-sm">
+            <div>
+              <table className="w-full border border-gray-200 rounded text-xs sm:text-sm">
                 <thead>
-                  <tr className="bg-gray-200">
-                    <th className="border border-black px-2 py-1 text-left">Items</th>
-                    <th className="border border-black px-2 py-1 text-center">Quantity in Rear</th>
+                  <tr className="bg-indigo-100">
+                    <th className="border border-gray-200 px-2 py-1 text-left">Item</th>
+                    <th className="border border-gray-200 px-2 py-1 text-center">Qty</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -396,28 +326,34 @@ export default function ChecklistForm() {
                     { label: "Gauze", field: "gauzeQty" },
                     { label: "Oxygen Mask", field: "oxygenMaskQty" },
                   ].map((item, idx) => (
-                    <tr key={idx}>
-                      <td className="border border-black px-2 py-1">{item.label}</td>
-                      <td className="border border-black px-2 py-1 text-center">
+                    <tr key={idx} className={idx % 2 === 0 ? "bg-gray-50" : ""}>
+                      <td className="border border-gray-200 px-2 py-1">{item.label}</td>
+                      <td className="border border-gray-200 px-2 py-1 text-center">
                         <input
-                          type="text"
                           {...register(item.field as keyof ChecklistFormData)}
-                          className="w-full text-center outline-none"
+                          className="w-full rounded border-gray-300 p-1 text-center text-xs sm:text-sm"
                         />
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              <label className="block mt-3">
+                <span className="font-medium">Remarks</span>
+                <textarea
+                  {...register("medicRemarks")}
+                  className="mt-1 w-full rounded-md border-gray-300 p-2 h-20 text-xs sm:text-sm"
+                />
+              </label>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Submit Button */}
+        {/* Submit */}
         <div className="text-center">
           <button
             type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold"
+            className="px-6 py-2 sm:px-8 sm:py-3 rounded-full font-bold text-white shadow bg-gradient-to-r from-indigo-600 to-purple-600 hover:scale-105 transition-transform text-sm sm:text-base"
           >
             Submit
           </button>

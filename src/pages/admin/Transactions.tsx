@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { EyeIcon } from "@heroicons/react/24/outline";
+import { EyeIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 type Transaction = {
   id: number;
@@ -62,94 +62,104 @@ export default function Transactions() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4">Transactions</h2>
+      <h2 className="text-2xl font-bold mb-6 text-center bg-gradient-to-r from-indigo-500 to-purple-600 text-transparent bg-clip-text">
+        Transactions
+      </h2>
 
-      {/* Filter + Delete Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-        {/* Left: Delete button */}
+      {/* Top Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
+        {/* Delete button */}
         <button
           onClick={handleDeleteSelected}
           disabled={selected.length === 0}
-          className={`px-4 py-2 rounded text-white ${
-            selected.length > 0 ? "bg-red-600 hover:bg-red-700" : "bg-gray-400 cursor-not-allowed"
+          className={`flex items-center px-4 py-2 rounded-lg font-semibold text-white shadow ${
+            selected.length > 0
+              ? "bg-red-600 hover:bg-red-700"
+              : "bg-gray-400 cursor-not-allowed"
           }`}
         >
+          <TrashIcon className="h-5 w-5 mr-1" />
           Delete Selected
         </button>
 
-        {/* Right: Filters */}
+        {/* Filters */}
         <div className="flex flex-wrap gap-2">
           <input
             type="date"
             value={filterDate}
             onChange={(e) => setFilterDate(e.target.value)}
-            className="border p-2 rounded text-sm"
+            className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
           />
           <input
             type="text"
             placeholder="Filter by Staff ID"
             value={filterStaffId}
             onChange={(e) => setFilterStaffId(e.target.value)}
-            className="border p-2 rounded text-sm"
+            className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
           />
           <input
             type="text"
             placeholder="Filter by Alpha"
             value={filterAlpha}
             onChange={(e) => setFilterAlpha(e.target.value)}
-            className="border p-2 rounded text-sm"
+            className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
           />
         </div>
       </div>
 
       {/* Table */}
-      <table className="w-full border border-black text-sm">
-        <thead className="bg-gray-200">
-          <tr>
-            <th className="border border-black p-2 text-center">
-              <input
-                type="checkbox"
-                checked={selectAll && filteredData.length > 0}
-                onChange={toggleSelectAll}
-              />
-            </th>
-            <th className="border border-black p-2">Date & Time</th>
-            <th className="border border-black p-2">Staff ID</th>
-            <th className="border border-black p-2">Driver Name</th>
-            <th className="border border-black p-2">Alpha</th>
-            <th className="border border-black p-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredData.map((row) => (
-            <tr key={row.id}>
-              <td className="border border-black p-2 text-center">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse bg-white shadow-md rounded-xl overflow-hidden text-sm">
+          <thead>
+            <tr className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-left">
+              <th className="p-3 text-center">
                 <input
                   type="checkbox"
-                  checked={selected.includes(row.id)}
-                  onChange={() => toggleRow(row.id)}
+                  checked={selectAll && filteredData.length > 0}
+                  onChange={toggleSelectAll}
                 />
-              </td>
-              <td className="border border-black p-2">{row.date}</td>
-              <td className="border border-black p-2">{row.staffId}</td>
-              <td className="border border-black p-2">{row.driver}</td>
-              <td className="border border-black p-2">{row.alpha}</td>
-              <td className="border border-black p-2 text-center">
-                <button className="text-blue-600" title="View PDF">
-                  <EyeIcon className="h-5 w-5 inline-block" />
-                </button>
-              </td>
+              </th>
+              <th className="p-3">Date & Time</th>
+              <th className="p-3">Staff ID</th>
+              <th className="p-3">Driver Name</th>
+              <th className="p-3">Alpha</th>
+              <th className="p-3 text-center">Actions</th>
             </tr>
-          ))}
-          {filteredData.length === 0 && (
-            <tr>
-              <td colSpan={6} className="text-center py-4 text-gray-500">
-                No records found
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredData.map((row, i) => (
+              <tr
+                key={row.id}
+                className={`${i % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-indigo-50 transition-colors`}
+              >
+                <td className="p-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(row.id)}
+                    onChange={() => toggleRow(row.id)}
+                  />
+                </td>
+                <td className="p-3">{row.date}</td>
+                <td className="p-3">{row.staffId}</td>
+                <td className="p-3">{row.driver}</td>
+                <td className="p-3">{row.alpha}</td>
+                <td className="p-3 text-center">
+                  <button className="text-indigo-600 hover:text-indigo-800" title="View PDF">
+                    <EyeIcon className="h-5 w-5 inline-block" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {filteredData.length === 0 && (
+              <tr>
+                <td colSpan={6} className="text-center py-6 text-gray-500">
+                  No records found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
