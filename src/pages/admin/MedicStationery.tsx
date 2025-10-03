@@ -1,25 +1,22 @@
-// pages/admin/Tools.tsx
+// pages/admin/MedicStationery.tsx
 import { useEffect, useState } from "react";
-import { PlusIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import {
-  fetchTools,
-  addTool,
-  updateTool,
-  deleteTool,
-} from "../../store/toolsSlice";
+  fetchMedicStationery,
+  addMedicStationery,
+  updateMedicStationery,
+  deleteMedicStationery,
+} from "../../store/medicStationerySlice";
+import { PlusIcon, PencilIcon } from "@heroicons/react/24/outline";
 
-type Tool = {
-  toolsAndExteriorId: number;
+type StationeryRow = {
+  id: number;
   name: string;
-  createdDate: string;
-  updatedDate: string;
-  isActive: boolean;
 };
 
-export default function Tools() {
+export default function MedicStationery() {
   const dispatch = useAppDispatch();
-  const { list, loading } = useAppSelector((s) => s.tools);
+  const { list, loading } = useAppSelector((state) => state.medicStationery);
 
   const [selected, setSelected] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
@@ -29,80 +26,76 @@ export default function Tools() {
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTool, setEditingTool] = useState<Tool | null>(null);
-  const [toolName, setToolName] = useState("");
+  const [editingRow, setEditingRow] = useState<StationeryRow | null>(null);
+  const [newRow, setNewRow] = useState<StationeryRow>({ id: 0, name: "" });
 
   useEffect(() => {
-    dispatch(fetchTools());
+    dispatch(fetchMedicStationery());
   }, [dispatch]);
 
-  // Filtered list
-  const filteredData = list.filter((row) =>
-    filterName ? row.name.toLowerCase().includes(filterName.toLowerCase()) : true
-  );
-
-  // Select all toggle
   const toggleSelectAll = () => {
     if (selectAll) {
       setSelected([]);
     } else {
-      setSelected(filteredData.map((row) => row.toolsAndExteriorId));
+      setSelected(filteredData.map((row) => row.id));
     }
     setSelectAll(!selectAll);
   };
 
-  // Toggle row selection
   const toggleRow = (id: number) => {
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
-  // Delete selected
   const handleDeleteSelected = () => {
-    selected.forEach((id) => dispatch(deleteTool(id)));
+    selected.forEach((id) => dispatch(deleteMedicStationery(id)));
     setSelected([]);
     setSelectAll(false);
   };
 
-  // Save Add/Edit
   const handleSave = async () => {
-    if (!toolName.trim()) {
-      alert("Please enter a tool name");
+    if (!newRow.name.trim()) {
+      alert("Stationery name is required");
       return;
     }
 
-    // if (editingTool) {
-    //   dispatch(updateTool({ ...editingTool, name: toolName }));
+    // if (editingRow) {
+    //   dispatch(updateMedicStationery({ id: editingRow.id, name: newRow.name }));
     // } else {
-    //   dispatch(addTool({ name: toolName }));
+    //   dispatch(addMedicStationery({ name: newRow.name }));
     // }
-    const result = await dispatch(addTool({ name: toolName }));
+    const result = await dispatch(addMedicStationery({ name: newRow.name }));
 
-    if (addTool.fulfilled.match(result)) {
-      await dispatch(fetchTools()); // ⬅️ reload from backend
+    if (addMedicStationery.fulfilled.match(result)) {
+      await dispatch(fetchMedicStationery()); // ⬅️ reload from backend
     }
-    setToolName("");
-    setEditingTool(null);
+
+    setNewRow({ id: 0, name: "" });
+    setEditingRow(null);
     setIsModalOpen(false);
   };
 
-  // Start edit
-  const startEdit = (tool: Tool) => {
-    setEditingTool(tool);
-    setToolName(tool.name);
+  const startEdit = (row: StationeryRow) => {
+    setEditingRow(row);
+    setNewRow(row);
     setIsModalOpen(true);
   };
+
+  const filteredData = list
+    .map((m) => ({ id: m.medicStationeryId, name: m.name }))
+    .filter((row) =>
+      filterName ? row.name.toLowerCase().includes(filterName.toLowerCase()) : true
+    );
 
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6 text-center bg-gradient-to-r from-indigo-500 to-purple-600 text-transparent bg-clip-text">
-        Tools & Exterior
+        Medic Stationery
       </h2>
 
       {/* Top Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2">
-        {/* Left: Delete button */}
         <button
           onClick={handleDeleteSelected}
           disabled={selected.length === 0}
@@ -114,21 +107,20 @@ export default function Tools() {
           Delete Selected
         </button>
 
-        {/* Right: Add button + Filter */}
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => {
-              setEditingTool(null);
-              setToolName("");
+              setEditingRow(null);
+              setNewRow({ id: 0, name: "" });
               setIsModalOpen(true);
             }}
             className="flex items-center px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-700 shadow"
           >
-            <PlusIcon className="h-5 w-5 mr-1" /> Add Tool
+            <PlusIcon className="h-5 w-5 mr-1" /> Add Stationery
           </button>
           <input
             type="text"
-            placeholder="Filter Tool Name"
+            placeholder="Filter by name"
             value={filterName}
             onChange={(e) => setFilterName(e.target.value)}
             className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
@@ -148,39 +140,31 @@ export default function Tools() {
                   onChange={toggleSelectAll}
                 />
               </th>
-              {/* <th className="p-3">ID</th> */}
-              <th className="p-3">Tool Name</th>
-              {/* <th className="p-3">Created Date</th>
-              <th className="p-3">Updated Date</th>
-              <th className="p-3 text-center">Actions</th> */}
+              {/* <th className="p-3">Stationery ID</th> */}
+              <th className="p-3">Stationery Name</th>
+              {/* <th className="p-3 text-center">Actions</th> */}
             </tr>
           </thead>
           <tbody>
             {filteredData.map((row, i) => (
               <tr
-                key={row.toolsAndExteriorId}
+                key={row.id}
                 className={`${i % 2 === 0 ? "bg-gray-50" : "bg-white"
                   } hover:bg-indigo-50`}
               >
                 <td className="p-3 text-center">
                   <input
                     type="checkbox"
-                    checked={selected.includes(row.toolsAndExteriorId)}
-                    onChange={() => toggleRow(row.toolsAndExteriorId)}
+                    checked={selected.includes(row.id)}
+                    onChange={() => toggleRow(row.id)}
                   />
                 </td>
-                {/* <td className="p-3">{row.toolsAndExteriorId}</td> */}
+                {/* <td className="p-3">{row.id}</td> */}
                 <td className="p-3">{row.name}</td>
-                {/* <td className="p-3">
-                  {new Date(row.createdDate).toLocaleDateString()}
-                </td>
-                <td className="p-3">
-                  {new Date(row.updatedDate).toLocaleDateString()}
-                </td>
-                <td className="p-3 text-center">
+                {/* <td className="p-3 text-center">
                   <button
                     onClick={() => startEdit(row)}
-                    className="text-indigo-600 hover:text-indigo-800 mr-2"
+                    className="text-indigo-600 hover:text-indigo-800"
                     title="Edit"
                   >
                     <PencilIcon className="h-5 w-5 inline-block" />
@@ -190,7 +174,7 @@ export default function Tools() {
             ))}
             {filteredData.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-4 text-gray-500">
+                <td colSpan={4} className="text-center py-4 text-gray-500">
                   No records found
                 </td>
               </tr>
@@ -199,21 +183,21 @@ export default function Tools() {
         </table>
       </div>
 
-      {loading && <p className="mt-4 text-gray-500">Loading...</p>}
+      {loading && <p className="text-gray-500 mt-4">Loading...</p>}
 
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-96">
             <h3 className="text-lg font-bold mb-4">
-              {editingTool ? "Edit Tool" : "Add Tool"}
+              {editingRow ? "Edit Stationery" : "Add New Stationery"}
             </h3>
             <div className="space-y-4">
               <input
                 type="text"
-                placeholder="Tool Name"
-                value={toolName}
-                onChange={(e) => setToolName(e.target.value)}
+                placeholder="Stationery Name"
+                value={newRow.name}
+                onChange={(e) => setNewRow({ ...newRow, name: e.target.value })}
                 className="border p-2 rounded w-full focus:ring-2 focus:ring-indigo-400"
               />
             </div>
@@ -221,7 +205,7 @@ export default function Tools() {
               <button
                 onClick={() => {
                   setIsModalOpen(false);
-                  setEditingTool(null);
+                  setEditingRow(null);
                 }}
                 className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
               >
@@ -231,7 +215,7 @@ export default function Tools() {
                 onClick={handleSave}
                 className="px-4 py-2 rounded bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 shadow"
               >
-                {editingTool ? "Save Changes" : "Add Tool"}
+                Add Stationery
               </button>
             </div>
           </div>

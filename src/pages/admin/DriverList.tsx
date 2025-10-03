@@ -1,109 +1,125 @@
-import { useState } from "react";
-import { PlusIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
-
-type Driver = {
-  id: number;
-  staffId: string;
-  name: string;
-  mobile: string;
-  license: string;
-};
+import { useEffect, useState } from "react";
+import {
+  fetchDrivers,
+  addDriver,
+  updateDriver,
+  deleteDriver,
+  Driver,
+} from "../../store/driverSlice";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { PlusIcon, PencilIcon } from "@heroicons/react/24/outline";
 
 export default function DriverList() {
-  const [data, setData] = useState<Driver[]>([
-    { id: 1, staffId: "S101", name: "Alex Johnson", mobile: "9876543210", license: "LIC001" },
-    { id: 2, staffId: "S102", name: "Emma Watson", mobile: "9123456780", license: "LIC002" },
-  ]);
+  const dispatch = useAppDispatch();
+  const { list, loading } = useAppSelector((s) => s.driver);
 
   const [selected, setSelected] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
+  const [refresh, setRefresh] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
+  const [newDriver, setNewDriver] = useState<Omit<Driver, "driverId" | "createdDate" | "updatedDate">>({
+    name: "",
+    driverCode: "",
+    role: "FullTime",
+    contactNumber: "",
+    licenseNumber: "",
+    isActive: true,
+  });
 
   // Filters
-  const [filterStaffId, setFilterStaffId] = useState("");
+  const [filterCode, setFilterCode] = useState("");
   const [filterName, setFilterName] = useState("");
   const [filterMobile, setFilterMobile] = useState("");
   const [filterLicense, setFilterLicense] = useState("");
 
-  // Modal
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
-  const [newDriver, setNewDriver] = useState<Driver>({
-    id: 0,
-    staffId: "",
-    name: "",
-    mobile: "",
-    license: "",
+  useEffect(() => {
+    dispatch(fetchDrivers());
+  }, [dispatch, refresh]);
+
+  // ✅ Tell TS list is Driver[]
+  const filteredData: Driver[] = list.filter((row: Driver) => {
+    const matchesCode = filterCode
+      ? row.driverCode.toLowerCase().includes(filterCode.toLowerCase())
+      : true;
+    const matchesName = filterName
+      ? row.name.toLowerCase().includes(filterName.toLowerCase())
+      : true;
+    const matchesMobile = filterMobile
+      ? row.contactNumber.includes(filterMobile)
+      : true;
+    const matchesLicense = filterLicense
+      ? row.licenseNumber.toLowerCase().includes(filterLicense.toLowerCase())
+      : true;
+    return matchesCode && matchesName && matchesMobile && matchesLicense;
   });
 
-  // Select all toggle
   const toggleSelectAll = () => {
     if (selectAll) {
       setSelected([]);
     } else {
-      setSelected(filteredData.map((row) => row.id));
+      setSelected(filteredData.map((row: Driver) => row.driverId));
     }
     setSelectAll(!selectAll);
   };
 
-  // Toggle row checkbox
   const toggleRow = (id: number) => {
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
-  // Delete selected rows
   const handleDeleteSelected = () => {
-    setData((prev) => prev.filter((row) => !selected.includes(row.id)));
+    selected.forEach((id) => dispatch(deleteDriver(id)));
     setSelected([]);
     setSelectAll(false);
   };
 
-  // Apply filters
-  const filteredData = data.filter((row) => {
-    const matchesStaff = filterStaffId
-      ? row.staffId.toLowerCase().includes(filterStaffId.toLowerCase())
-      : true;
-    const matchesName = filterName
-      ? row.name.toLowerCase().includes(filterName.toLowerCase())
-      : true;
-    const matchesMobile = filterMobile
-      ? row.mobile.includes(filterMobile)
-      : true;
-    const matchesLicense = filterLicense
-      ? row.license.toLowerCase().includes(filterLicense.toLowerCase())
-      : true;
-    return matchesStaff && matchesName && matchesMobile && matchesLicense;
-  });
-
-  // Add or edit driver
-  const handleSaveDriver = () => {
-    if (!newDriver.staffId || !newDriver.name || !newDriver.mobile || !newDriver.license) {
+  const handleSaveDriver = async () => {
+    if (
+      !newDriver.name ||
+      !newDriver.driverCode ||
+      !newDriver.contactNumber ||
+      !newDriver.licenseNumber
+    ) {
       alert("Please fill all fields");
       return;
     }
 
     if (editingDriver) {
-      // Update existing
-      setData((prev) =>
-        prev.map((d) => (d.id === editingDriver.id ? { ...newDriver, id: editingDriver.id } : d))
+      await dispatch(
+        updateDriver({ id: editingDriver.driverId, ...newDriver })
       );
     } else {
-      // Add new
-      const driverToAdd = { ...newDriver, id: Date.now() };
-      setData((prev) => [...prev, driverToAdd]);
+      await dispatch(addDriver(newDriver));
+      setRefresh(!refresh);
     }
 
-    setNewDriver({ id: 0, staffId: "", name: "", mobile: "", license: "" });
+    setNewDriver({
+      name: "",
+      driverCode: "",
+      role: "FullTime",
+      contactNumber: "",
+      licenseNumber: "",
+      isActive: true,
+    });
     setEditingDriver(null);
     setIsModalOpen(false);
   };
 
   const startEdit = (driver: Driver) => {
     setEditingDriver(driver);
-    setNewDriver(driver);
+    setNewDriver({
+      name: driver.name,
+      driverCode: driver.driverCode,
+      role: driver.role,
+      contactNumber: driver.contactNumber,
+      licenseNumber: driver.licenseNumber,
+      isActive: driver.isActive,
+    });
     setIsModalOpen(true);
   };
+
 
   return (
     <div>
@@ -113,18 +129,15 @@ export default function DriverList() {
 
       {/* Top Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2">
-        {/* Left: Delete button */}
         <button
           onClick={handleDeleteSelected}
           disabled={selected.length === 0}
-          className={`px-4 py-2 rounded-lg text-white font-semibold ${
-            selected.length > 0 ? "bg-red-600 hover:bg-red-700 shadow" : "bg-gray-400 cursor-not-allowed"
-          }`}
+          className={`px-4 py-2 rounded-lg text-white font-semibold ${selected.length > 0 ? "bg-red-600 hover:bg-red-700 shadow" : "bg-gray-400 cursor-not-allowed"
+            }`}
         >
           Delete Selected
         </button>
 
-        {/* Right: Add button + Filters */}
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => {
@@ -137,9 +150,9 @@ export default function DriverList() {
           </button>
           <input
             type="text"
-            placeholder="Filter Staff ID"
-            value={filterStaffId}
-            onChange={(e) => setFilterStaffId(e.target.value)}
+            placeholder="Filter Code"
+            value={filterCode}
+            onChange={(e) => setFilterCode(e.target.value)}
             className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
           />
           <input
@@ -178,28 +191,30 @@ export default function DriverList() {
                   onChange={toggleSelectAll}
                 />
               </th>
-              <th className="p-3">Staff ID</th>
-              <th className="p-3">Driver Name</th>
+              <th className="p-3">Code</th>
+              <th className="p-3">Name</th>
               <th className="p-3">Mobile</th>
               <th className="p-3">License No</th>
-              <th className="p-3 text-center">Actions</th>
+              <th className="p-3">Role</th>
+              {/* <th className="p-3 text-center">Actions</th> */}
             </tr>
           </thead>
           <tbody>
             {filteredData.map((row, i) => (
-              <tr key={row.id} className={`${i % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-indigo-50`}>
+              <tr key={row.driverId} className={`${i % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-indigo-50`}>
                 <td className="p-3 text-center">
                   <input
                     type="checkbox"
-                    checked={selected.includes(row.id)}
-                    onChange={() => toggleRow(row.id)}
+                    checked={selected.includes(row.driverId)}
+                    onChange={() => toggleRow(row.driverId)}
                   />
                 </td>
-                <td className="p-3">{row.staffId}</td>
+                <td className="p-3">{row.driverCode}</td>
                 <td className="p-3">{row.name}</td>
-                <td className="p-3">{row.mobile}</td>
-                <td className="p-3">{row.license}</td>
-                <td className="p-3 text-center">
+                <td className="p-3">{row.contactNumber}</td>
+                <td className="p-3">{row.licenseNumber}</td>
+                <td className="p-3">{row.role}</td>
+                {/* <td className="p-3 text-center">
                   <button
                     onClick={() => startEdit(row)}
                     className="text-indigo-600 hover:text-indigo-800 mr-2"
@@ -207,22 +222,12 @@ export default function DriverList() {
                   >
                     <PencilIcon className="h-5 w-5 inline-block" />
                   </button>
-                  <button
-                    onClick={() => {
-                      setSelected([row.id]);
-                      handleDeleteSelected();
-                    }}
-                    className="text-red-600 hover:text-red-800"
-                    title="Delete"
-                  >
-                    <TrashIcon className="h-5 w-5 inline-block" />
-                  </button>
-                </td>
+                </td> */}
               </tr>
             ))}
             {filteredData.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-4 text-gray-500">
+                <td colSpan={7} className="text-center py-4 text-gray-500">
                   No records found
                 </td>
               </tr>
@@ -231,7 +236,7 @@ export default function DriverList() {
         </table>
       </div>
 
-      {/* Modal Popup for Add/Edit Driver */}
+      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-96">
@@ -241,9 +246,9 @@ export default function DriverList() {
             <div className="space-y-4">
               <input
                 type="text"
-                placeholder="Staff ID"
-                value={newDriver.staffId}
-                onChange={(e) => setNewDriver({ ...newDriver, staffId: e.target.value })}
+                placeholder="Driver Code"
+                value={newDriver.driverCode}
+                onChange={(e) => setNewDriver({ ...newDriver, driverCode: e.target.value })}
                 className="border p-2 rounded w-full focus:ring-2 focus:ring-indigo-400"
               />
               <input
@@ -255,18 +260,26 @@ export default function DriverList() {
               />
               <input
                 type="text"
-                placeholder="Mobile"
-                value={newDriver.mobile}
-                onChange={(e) => setNewDriver({ ...newDriver, mobile: e.target.value })}
+                placeholder="Contact Number"
+                value={newDriver.contactNumber}
+                onChange={(e) => setNewDriver({ ...newDriver, contactNumber: e.target.value })}
                 className="border p-2 rounded w-full focus:ring-2 focus:ring-indigo-400"
               />
               <input
                 type="text"
-                placeholder="License No"
-                value={newDriver.license}
-                onChange={(e) => setNewDriver({ ...newDriver, license: e.target.value })}
+                placeholder="License Number"
+                value={newDriver.licenseNumber}
+                onChange={(e) => setNewDriver({ ...newDriver, licenseNumber: e.target.value })}
                 className="border p-2 rounded w-full focus:ring-2 focus:ring-indigo-400"
               />
+              <select
+                value={newDriver.role}
+                onChange={(e) => setNewDriver({ ...newDriver, role: e.target.value })}
+                className="border p-2 rounded w-full focus:ring-2 focus:ring-indigo-400"
+              >
+                <option value="FullTime">Full Time</option>
+                <option value="PartTime">Part Time</option>
+              </select>
             </div>
             <div className="flex justify-end space-x-3 mt-6">
               <button

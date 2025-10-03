@@ -9,10 +9,12 @@ export type CrudField = {
 interface CrudTableProps {
   title: string;
   fields: CrudField[];
+  data: any[];
+  onAdd: (row: Record<string, string>) => void;
+  onDelete: (ids: number[]) => void;
 }
 
-export default function CrudTable({ title, fields }: CrudTableProps) {
-  const [data, setData] = useState<any[]>([]);
+export default function CrudTable({ title, fields, data, onAdd, onDelete }: CrudTableProps) {
   const [selected, setSelected] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,7 +24,7 @@ export default function CrudTable({ title, fields }: CrudTableProps) {
     if (selectAll) {
       setSelected([]);
     } else {
-      setSelected(data.map((row) => row.id));
+      setSelected(data.map((row) => row.lightingAndElectricalId));
     }
     setSelectAll(!selectAll);
   };
@@ -34,7 +36,7 @@ export default function CrudTable({ title, fields }: CrudTableProps) {
   };
 
   const handleDeleteSelected = () => {
-    setData((prev) => prev.filter((row) => !selected.includes(row.id)));
+    onDelete(selected);
     setSelected([]);
     setSelectAll(false);
   };
@@ -44,8 +46,7 @@ export default function CrudTable({ title, fields }: CrudTableProps) {
       alert("Please fill all fields");
       return;
     }
-    const rowToAdd = { id: Date.now(), ...newRow };
-    setData((prev) => [...prev, rowToAdd]);
+    onAdd(newRow);
     setNewRow({});
     setIsModalOpen(false);
   };
@@ -59,8 +60,9 @@ export default function CrudTable({ title, fields }: CrudTableProps) {
         <button
           onClick={handleDeleteSelected}
           disabled={selected.length === 0}
-          className={`px-4 py-2 rounded text-white ${selected.length > 0 ? "bg-red-600 hover:bg-red-700" : "bg-gray-400 cursor-not-allowed"
-            }`}
+          className={`px-4 py-2 rounded text-white ${
+            selected.length > 0 ? "bg-red-600 hover:bg-red-700" : "bg-gray-400 cursor-not-allowed"
+          }`}
         >
           Delete Selected
         </button>
@@ -75,23 +77,39 @@ export default function CrudTable({ title, fields }: CrudTableProps) {
       {/* Table */}
       <table className="w-full border-collapse bg-white shadow-md rounded-lg overflow-hidden text-sm">
         <thead>
-          <tr className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-left">
-            <th className="px-4 py-3">Date</th>
-            <th className="px-4 py-3">Staff ID</th>
-            <th className="px-4 py-3">Driver</th>
+          <tr className="bg-indigo-600 text-white text-left">
+            <th className="px-4 py-3">
+              <input
+                type="checkbox"
+                checked={selectAll && data.length > 0}
+                onChange={toggleSelectAll}
+              />
+            </th>
+            {fields.map((f) => (
+              <th key={f.key} className="px-4 py-3">{f.label}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {data.map((row, i) => (
-            <tr key={row.id} className={`${i % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-indigo-50`}>
-              <td className="px-4 py-2">{row.date}</td>
-              <td className="px-4 py-2">{row.staffId}</td>
-              <td className="px-4 py-2">{row.driver}</td>
+            <tr
+              key={row.lightingAndElectricalId}
+              className={`${i % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-indigo-50`}
+            >
+              <td className="px-4 py-2">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(row.lightingAndElectricalId)}
+                  onChange={() => toggleRow(row.lightingAndElectricalId)}
+                />
+              </td>
+              {fields.map((f) => (
+                <td key={f.key} className="px-4 py-2">{row[f.key]}</td>
+              ))}
             </tr>
           ))}
         </tbody>
       </table>
-
 
       {/* Modal */}
       {isModalOpen && (

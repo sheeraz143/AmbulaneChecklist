@@ -1,24 +1,47 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import { validateAdminPassword } from "../store/adminAuthSlice";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { toast } from "react-toastify";
 
 export default function AdminLogin(): JSX.Element {
-  const [username] = useState<string>("Admin"); // username fixed as Admin
-  const [password, setPassword] = useState<string>("");
-  const [showPwd, setShowPwd] = useState<boolean>(false);
+  const [name] = useState("Admin"); // fixed username
+  const [password, setPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const { loading, error, success } = useAppSelector((state) => state.adminAuth);
 
-  const handleLogin = () => {
-    if (username === "Admin" && password === "1234") {
+  useEffect(() => {
+    if (success) {
+      navigate("/admin/transactions");
+    }
+  }, [success, navigate]);
+
+  const handleLogin = async () => {
+    if (!password.trim()) {
+      return toast.error("Password is required");
+    }
+
+    const result = await dispatch(validateAdminPassword({ name, password }));
+
+    if (validateAdminPassword.fulfilled.match(result)) {
       localStorage.setItem("adminAuth", "true");
       navigate("/admin/transactions");
-    } else {
-      alert("Invalid credentials");
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500">
+    <div className="relative flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500">
+      {/* Staff Login Button - top-right corner */}
+      <button
+        onClick={() => navigate("/")}
+        className="absolute top-4 right-4 px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold shadow hover:from-green-600 hover:to-emerald-700 transition-transform hover:scale-105"
+      >
+        Staff Login
+      </button>
+
       <div className="bg-white/90 backdrop-blur-lg p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-200">
         <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-indigo-500 to-purple-600 text-transparent bg-clip-text">
           Admin Login
@@ -28,7 +51,7 @@ export default function AdminLogin(): JSX.Element {
         <label className="block mb-2 text-gray-700 font-semibold">Username</label>
         <input
           type="text"
-          value={username}
+          value={name}
           disabled
           className="w-full border border-gray-300 rounded-lg p-3 mb-6 bg-gray-100 text-gray-600 cursor-not-allowed"
         />
@@ -56,12 +79,20 @@ export default function AdminLogin(): JSX.Element {
           </button>
         </div>
 
+        {/* Error Message */}
+        {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+
         {/* Login Button */}
         <button
           onClick={handleLogin}
-          className="w-full py-3 rounded-lg font-bold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 transition-transform hover:scale-105 shadow-lg"
+          disabled={loading}
+          className={`w-full py-3 rounded-lg font-bold text-white shadow-lg transition-transform hover:scale-105 ${
+            loading
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
+          }`}
         >
-          Login
+          {loading ? "Logging in..." : "Login"}
         </button>
       </div>
     </div>

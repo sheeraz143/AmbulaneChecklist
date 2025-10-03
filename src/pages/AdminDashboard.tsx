@@ -14,13 +14,16 @@ import Alpha from "./admin/Alpha";
 import Lighting from "./admin/Lighting";
 import Tools from "./admin/Tools";
 import Medic from "./admin/Medic";
-import Items from "./admin/Items";
+// import Items from "./admin/Items";
+// import Staff from "./admin/Staff";
 import {
   Bars3Icon,
   ArrowLeftOnRectangleIcon,
   ChevronDownIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import MedicStationery from "./admin/MedicStationery";
+import MedicEquipmentPage from "./admin/MedicEquipment";
 
 export default function AdminDashboard(): JSX.Element {
   const [collapsed, setCollapsed] = useState(false);   // desktop collapse
@@ -98,10 +101,9 @@ export default function AdminDashboard(): JSX.Element {
             to="transactions"
             onClick={() => isMobile && setMobileOpen(false)}
             className={({ isActive }) =>
-              `mx-3 flex items-center rounded-lg px-4 py-2 text-sm md:text-base transition-colors duration-200 ${
-                isActive
-                  ? "bg-gradient-to-r from-indigo-500 to-indigo-700 text-white shadow-md"
-                  : "hover:bg-indigo-600 hover:text-white text-indigo-200"
+              `mx-3 flex items-center rounded-lg px-4 py-2 text-sm md:text-base transition-colors duration-200 ${isActive
+                ? "bg-gradient-to-r from-indigo-500 to-indigo-700 text-white shadow-md"
+                : "hover:bg-indigo-600 hover:text-white text-indigo-200"
               }`
             }
           >
@@ -132,23 +134,26 @@ export default function AdminDashboard(): JSX.Element {
                   { path: "lighting", icon: "💡", name: "Lighting & Electrical" },
                   { path: "tools", icon: "🛠️", name: "Tools & Exterior" },
                   { path: "medic", icon: "🩺", name: "Medic" },
-                  { path: "items", icon: "📦", name: "Items" },
+                  // { path: "staff", icon: "👥", name: "Staff" },
+                  { path: "medic-stationery", icon: "📑", name: "Medic Stationery" },
+                  { path: "medic-equipment", icon: "🧰", name: "Medic Equipment" }
+
                 ].map(({ path, icon, name }) => (
                   <NavLink
                     key={path}
                     to={path}
                     onClick={() => isMobile && setMobileOpen(false)}
                     className={({ isActive }) =>
-                      `px-4 py-2 rounded-md flex items-center text-sm md:text-base transition-colors ${
-                        isActive
-                          ? "bg-indigo-500 text-white shadow-md"
-                          : "hover:bg-indigo-600 hover:text-white text-indigo-200"
+                      `px-4 py-2 rounded-md flex items-center text-sm md:text-base transition-colors ${isActive
+                        ? "bg-indigo-500 text-white shadow-md"
+                        : "hover:bg-indigo-600 hover:text-white text-indigo-200"
                       }`
                     }
                   >
                     {icon} <span className="ml-2">{name}</span>
                   </NavLink>
                 ))}
+
               </div>
             )}
           </div>
@@ -157,10 +162,9 @@ export default function AdminDashboard(): JSX.Element {
             to="change-password"
             onClick={() => isMobile && setMobileOpen(false)}
             className={({ isActive }) =>
-              `mx-3 flex items-center rounded-lg px-4 py-2 text-sm md:text-base transition-colors duration-200 ${
-                isActive
-                  ? "bg-gradient-to-r from-indigo-500 to-indigo-700 text-white shadow-md"
-                  : "hover:bg-indigo-600 hover:text-white text-indigo-200"
+              `mx-3 flex items-center rounded-lg px-4 py-2 text-sm md:text-base transition-colors duration-200 ${isActive
+                ? "bg-gradient-to-r from-indigo-500 to-indigo-700 text-white shadow-md"
+                : "hover:bg-indigo-600 hover:text-white text-indigo-200"
               }`
             }
           >
@@ -204,9 +208,12 @@ export default function AdminDashboard(): JSX.Element {
             <Route path="lighting" element={<Lighting />} />
             <Route path="tools" element={<Tools />} />
             <Route path="medic" element={<Medic />} />
-            <Route path="items" element={<Items />} />
+            {/* <Route path="staff" element={<Staff />} /> */}
+            <Route path="medic-stationery" element={<MedicStationery />} />
             <Route path="change-password" element={<ChangePassword />} />
             <Route index element={<Navigate to="transactions" replace />} />
+            <Route path="medic-equipment" element={<MedicEquipmentPage />} />
+
           </Routes>
         </main>
       </div>

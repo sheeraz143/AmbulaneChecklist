@@ -1,17 +1,17 @@
-// pages/admin/Medic.tsx
+// pages/admin/Staff.tsx
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import {
-  fetchMedics,
-  addMedic,
-  updateMedic,
-  deleteMedic,
-} from "../../store/medicSlice";
+  fetchStaffs,
+  addStaff,
+  updateStaff,
+  deleteStaff,
+} from "../../store/staffSlice";
 import { PlusIcon, PencilIcon } from "@heroicons/react/24/outline";
 
-export default function Medic() {
+export default function Staff() {
   const dispatch = useAppDispatch();
-  const { list, loading } = useAppSelector((s) => s.medic);
+  const { list, loading } = useAppSelector((s) => s.staff);
 
   // selection
   const [selected, setSelected] = useState<number[]>([]);
@@ -20,6 +20,7 @@ export default function Medic() {
   // filters
   const [filterName, setFilterName] = useState("");
   const [filterCode, setFilterCode] = useState("");
+  const [filterRole, setFilterRole] = useState("");
   const [filterContact, setFilterContact] = useState("");
 
   // modal
@@ -27,12 +28,13 @@ export default function Medic() {
   const [editing, setEditing] = useState<any | null>(null);
   const [form, setForm] = useState({
     name: "",
-    medicCode: "",
+    staffCode: "",
+    role: "FullTime",
     contactNumber: "",
   });
 
   useEffect(() => {
-    dispatch(fetchMedics());
+    dispatch(fetchStaffs());
   }, [dispatch]);
 
   const toggleRow = (id: number) => {
@@ -45,65 +47,61 @@ export default function Medic() {
     if (selectAll) {
       setSelected([]);
     } else {
-      setSelected(filtered.map((m) => m.medicId));
+      setSelected(filtered.map((s) => s.staffId));
     }
     setSelectAll(!selectAll);
   };
 
   const handleDeleteSelected = () => {
-    selected.forEach((id) => dispatch(deleteMedic(id)));
+    selected.forEach((id) => dispatch(deleteStaff(id)));
     setSelected([]);
     setSelectAll(false);
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.medicCode || !form.contactNumber) {
+    if (!form.name || !form.staffCode || !form.contactNumber) {
       alert("Please fill all fields");
       return;
     }
-    // if (editing) {
-    //   await dispatch(updateMedic({ ...editing, ...form }));
-    // } else {
-    //   await dispatch(addMedic(form));
-    // }
+    if (editing) {
+      await dispatch(updateStaff({ ...editing, ...form }));
+    } else {
+      await dispatch(addStaff(form));
+    }
     setIsModalOpen(false);
     setEditing(null);
-    setForm({ name: "", medicCode: "", contactNumber: "" });
-
-    const result = await dispatch(addMedic(form));
-
-    if (addMedic.fulfilled.match(result)) {
-      await dispatch(fetchMedics()); // ⬅️ reload from backend
-    }
+    setForm({ name: "", staffCode: "", role: "FullTime", contactNumber: "" });
   };
 
-  const startEdit = (m: any) => {
-    setEditing(m);
+  const startEdit = (s: any) => {
+    setEditing(s);
     setForm({
-      name: m.name,
-      medicCode: m.medicCode,
-      contactNumber: m.contactNumber,
+      name: s.name,
+      staffCode: s.staffCode,
+      role: s.role,
+      contactNumber: s.contactNumber,
     });
     setIsModalOpen(true);
   };
 
-  const filtered = list.filter((m) => {
+  const filtered = list.filter((s) => {
     const matchName = filterName
-      ? m.name.toLowerCase().includes(filterName.toLowerCase())
+      ? s.name.toLowerCase().includes(filterName.toLowerCase())
       : true;
     const matchCode = filterCode
-      ? m.medicCode.toLowerCase().includes(filterCode.toLowerCase())
+      ? s.staffCode.toLowerCase().includes(filterCode.toLowerCase())
       : true;
+    const matchRole = filterRole ? s.role === filterRole : true;
     const matchContact = filterContact
-      ? m.contactNumber.includes(filterContact)
+      ? s.contactNumber.includes(filterContact)
       : true;
-    return matchName && matchCode && matchContact;
+    return matchName && matchCode && matchRole && matchContact;
   });
 
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6 text-center bg-gradient-to-r from-indigo-500 to-purple-600 text-transparent bg-clip-text">
-        Medic List
+        Staff List
       </h2>
 
       {/* Top Actions */}
@@ -112,10 +110,11 @@ export default function Medic() {
         <button
           onClick={handleDeleteSelected}
           disabled={selected.length === 0}
-          className={`px-4 py-2 rounded-lg text-white font-semibold ${selected.length > 0
+          className={`px-4 py-2 rounded-lg text-white font-semibold ${
+            selected.length > 0
               ? "bg-red-600 hover:bg-red-700 shadow"
               : "bg-gray-400 cursor-not-allowed"
-            }`}
+          }`}
         >
           Delete Selected
         </button>
@@ -125,12 +124,17 @@ export default function Medic() {
           <button
             onClick={() => {
               setEditing(null);
-              setForm({ name: "", medicCode: "", contactNumber: "" });
+              setForm({
+                name: "",
+                staffCode: "",
+                role: "FullTime",
+                contactNumber: "",
+              });
               setIsModalOpen(true);
             }}
             className="flex items-center px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-700 shadow"
           >
-            <PlusIcon className="h-5 w-5 mr-1" /> Add Medic
+            <PlusIcon className="h-5 w-5 mr-1" /> Add Staff
           </button>
           <input
             type="text"
@@ -146,6 +150,15 @@ export default function Medic() {
             onChange={(e) => setFilterCode(e.target.value)}
             className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
           />
+          <select
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value)}
+            className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
+          >
+            <option value="">All Roles</option>
+            <option value="FullTime">Full Time</option>
+            <option value="PartTime">Part Time</option>
+          </select>
           <input
             type="text"
             placeholder="Filter Contact"
@@ -160,7 +173,7 @@ export default function Medic() {
       <div className="overflow-x-auto">
         <table className="w-full border-collapse bg-white shadow-md rounded-xl overflow-hidden text-sm">
           <thead>
-            <tr className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-left">
+            <tr className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
               <th className="p-3 text-center">
                 <input
                   type="checkbox"
@@ -168,42 +181,45 @@ export default function Medic() {
                   onChange={toggleSelectAll}
                 />
               </th>
-              <th className="p-3">Medic Name</th>
-              <th className="p-3">Medic Code</th>
+              <th className="p-3">Name</th>
+              <th className="p-3">Staff Code</th>
+              <th className="p-3">Role</th>
               <th className="p-3">Contact Number</th>
-              {/* <th className="p-3 text-center">Actions</th> */}
+              <th className="p-3 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((m, i) => (
+            {filtered.map((s, i) => (
               <tr
-                key={m.medicId}
-                className={`${i % 2 === 0 ? "bg-gray-50" : "bg-white"
-                  } hover:bg-indigo-50`}
+                key={s.staffId}
+                className={`${
+                  i % 2 === 0 ? "bg-gray-50" : "bg-white"
+                } hover:bg-indigo-50`}
               >
                 <td className="p-3 text-center">
                   <input
                     type="checkbox"
-                    checked={selected.includes(m.medicId)}
-                    onChange={() => toggleRow(m.medicId)}
+                    checked={selected.includes(s.staffId)}
+                    onChange={() => toggleRow(s.staffId)}
                   />
                 </td>
-                <td className="p-3">{m.name}</td>
-                <td className="p-3">{m.medicCode}</td>
-                <td className="p-3">{m.contactNumber}</td>
-                {/* <td className="p-3 text-center">
+                <td className="p-3">{s.name}</td>
+                <td className="p-3">{s.staffCode}</td>
+                <td className="p-3">{s.role}</td>
+                <td className="p-3">{s.contactNumber}</td>
+                <td className="p-3 text-center">
                   <button
-                    onClick={() => startEdit(m)}
+                    onClick={() => startEdit(s)}
                     className="text-indigo-600 hover:text-indigo-800"
                   >
                     <PencilIcon className="h-5 w-5 inline-block" />
                   </button>
-                </td> */}
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center py-4 text-gray-500">
+                <td colSpan={6} className="text-center py-4 text-gray-500">
                   No records found
                 </td>
               </tr>
@@ -217,23 +233,31 @@ export default function Medic() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-96">
             <h3 className="text-lg font-bold mb-4">
-              {editing ? "Edit Medic" : "Add New Medic"}
+              {editing ? "Edit Staff" : "Add New Staff"}
             </h3>
             <div className="space-y-4">
               <input
                 type="text"
-                placeholder="Medic Name"
+                placeholder="Name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="border p-2 rounded w-full focus:ring-2 focus:ring-indigo-400"
               />
               <input
                 type="text"
-                placeholder="Medic Code"
-                value={form.medicCode}
-                onChange={(e) => setForm({ ...form, medicCode: e.target.value })}
+                placeholder="Staff Code"
+                value={form.staffCode}
+                onChange={(e) => setForm({ ...form, staffCode: e.target.value })}
                 className="border p-2 rounded w-full focus:ring-2 focus:ring-indigo-400"
               />
+              <select
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value })}
+                className="border p-2 rounded w-full focus:ring-2 focus:ring-indigo-400"
+              >
+                <option value="FullTime">Full Time</option>
+                <option value="PartTime">Part Time</option>
+              </select>
               <input
                 type="text"
                 placeholder="Contact Number"
@@ -258,7 +282,7 @@ export default function Medic() {
                 onClick={handleSave}
                 className="px-4 py-2 rounded bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 shadow"
               >
-                {editing ? "Save Changes" : "Add Medic"}
+                {editing ? "Save Changes" : "Add Staff"}
               </button>
             </div>
           </div>

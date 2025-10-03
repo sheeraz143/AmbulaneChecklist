@@ -4,19 +4,38 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
 });
 
-export type AdminLoginResponse = {
-  statusCode: number;
-  isSuccess: boolean;
-  data: {
-    adminId: number;
-    name: string;
-    password: string;
-  };
-  message: string;
-  errorDetails: string | null;
+
+export type AdminApiResponse = {
+  errorCode: number;
+  errorDescription: string;
 };
 
-export const adminLoginApi = async (name: string, password: string): Promise<AdminLoginResponse> => {
-  const response = await api.post<AdminLoginResponse>("/api/Admins", { name, password });
+export type ChangePasswordResponse = {
+  errorCode: number;
+  errorDescription: string;
+};
+
+
+export const adminValidateApi = async (
+  name: string,
+  password: string
+): Promise<AdminApiResponse> => {
+  const response = await api.post<AdminApiResponse>(
+    "/api/Admins/Validate",
+    { name, password }
+  );
+  return response.data;
+};
+
+
+
+export const changePasswordApi = async (
+  oldPassword: string,
+  newPassword: string
+): Promise<ChangePasswordResponse> => {
+  const response = await api.post<ChangePasswordResponse>(
+    "/api/Admins/changePassword",
+    { oldPassword, newPassword }
+  );
   return response.data;
 };

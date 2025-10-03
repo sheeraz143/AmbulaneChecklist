@@ -1,20 +1,17 @@
-import { useState } from "react";
-import { EyeIcon, TrashIcon } from "@heroicons/react/24/outline";
 
-type Transaction = {
-  id: number;
-  date: string;
-  staffId: string;
-  driver: string;
-  alpha: string;
-};
+// pages/admin/Transactions.tsx
+import { useEffect, useState } from "react";
+import { EyeIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import {
+  fetchTransactions,
+  deleteTransaction,
+  Transaction,
+} from "../../store/transactionSlice";
 
 export default function Transactions() {
-  const [data, setData] = useState<Transaction[]>([
-    { id: 1, date: "2025-09-23 10:30", staffId: "S123", driver: "John Doe", alpha: "A1" },
-    { id: 2, date: "2025-09-23 11:00", staffId: "S124", driver: "Jane Smith", alpha: "A2" },
-    { id: 3, date: "2025-09-24 09:15", staffId: "S125", driver: "Mark Lee", alpha: "A1" },
-  ]);
+  const dispatch = useAppDispatch();
+  const { list, loading } = useAppSelector((s) => s.transactions);
 
   const [selected, setSelected] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
@@ -24,41 +21,45 @@ export default function Transactions() {
   const [filterStaffId, setFilterStaffId] = useState("");
   const [filterAlpha, setFilterAlpha] = useState("");
 
-  // Select all toggle
+  // Load on mount
+  useEffect(() => {
+    dispatch(fetchTransactions());
+  }, [dispatch]);
+
+  // Filtered data
+  const filteredData = list.filter((row: Transaction) => {
+    const matchesDate = filterDate ? row.transactionDate.startsWith(filterDate) : true;
+    const matchesStaff = filterStaffId
+      ? row.driverCode?.toLowerCase().includes(filterStaffId.toLowerCase()) ||
+        row.medicCode?.toLowerCase().includes(filterStaffId.toLowerCase())
+      : true;
+    const matchesAlpha = filterAlpha
+      ? row.vehicleNumber.toLowerCase().includes(filterAlpha.toLowerCase())
+      : true;
+    return matchesDate && matchesStaff && matchesAlpha;
+  });
+
+  // Select toggles
   const toggleSelectAll = () => {
     if (selectAll) {
       setSelected([]);
     } else {
-      setSelected(filteredData.map((row) => row.id));
+      setSelected(filteredData.map((row) => row.masterId));
     }
     setSelectAll(!selectAll);
   };
-
-  // Toggle row checkbox
   const toggleRow = (id: number) => {
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
-  // Delete selected rows
+  // Delete selected
   const handleDeleteSelected = () => {
-    setData((prev) => prev.filter((row) => !selected.includes(row.id)));
+    selected.forEach((id) => dispatch(deleteTransaction(id)));
     setSelected([]);
     setSelectAll(false);
   };
-
-  // Apply filters
-  const filteredData = data.filter((row) => {
-    const matchesDate = filterDate ? row.date.startsWith(filterDate) : true;
-    const matchesStaff = filterStaffId
-      ? row.staffId.toLowerCase().includes(filterStaffId.toLowerCase())
-      : true;
-    const matchesAlpha = filterAlpha
-      ? row.alpha.toLowerCase().includes(filterAlpha.toLowerCase())
-      : true;
-    return matchesDate && matchesStaff && matchesAlpha;
-  });
 
   return (
     <div>
@@ -92,14 +93,14 @@ export default function Transactions() {
           />
           <input
             type="text"
-            placeholder="Filter by Staff ID"
+            placeholder="Filter by Staff Code"
             value={filterStaffId}
             onChange={(e) => setFilterStaffId(e.target.value)}
             className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
           />
           <input
             type="text"
-            placeholder="Filter by Alpha"
+            placeholder="Filter by Vehicle"
             value={filterAlpha}
             onChange={(e) => setFilterAlpha(e.target.value)}
             className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
@@ -120,37 +121,52 @@ export default function Transactions() {
                 />
               </th>
               <th className="p-3">Date & Time</th>
-              <th className="p-3">Staff ID</th>
-              <th className="p-3">Driver Name</th>
-              <th className="p-3">Alpha</th>
-              <th className="p-3 text-center">Actions</th>
+              <th className="p-3">Vehicle</th>
+              <th className="p-3">Driver</th>
+              <th className="p-3">Medic</th>
+              {/* <th className="p-3 text-center">Actions</th> */}
             </tr>
           </thead>
           <tbody>
-            {filteredData.map((row, i) => (
-              <tr
-                key={row.id}
-                className={`${i % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-indigo-50 transition-colors`}
-              >
-                <td className="p-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(row.id)}
-                    onChange={() => toggleRow(row.id)}
-                  />
-                </td>
-                <td className="p-3">{row.date}</td>
-                <td className="p-3">{row.staffId}</td>
-                <td className="p-3">{row.driver}</td>
-                <td className="p-3">{row.alpha}</td>
-                <td className="p-3 text-center">
-                  <button className="text-indigo-600 hover:text-indigo-800" title="View PDF">
-                    <EyeIcon className="h-5 w-5 inline-block" />
-                  </button>
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="text-center py-6 text-gray-500">
+                  Loading...
                 </td>
               </tr>
-            ))}
-            {filteredData.length === 0 && (
+            ) : filteredData.length > 0 ? (
+              filteredData.map((row, i) => (
+                <tr
+                  key={row.masterId}
+                  className={`${i % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-indigo-50 transition-colors`}
+                >
+                  <td className="p-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(row.masterId)}
+                      onChange={() => toggleRow(row.masterId)}
+                    />
+                  </td>
+                  <td className="p-3">
+                    {new Date(row.transactionDate).toLocaleString("en-GB", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
+                  </td>
+                  <td className="p-3">{row.vehicleNumber}</td>
+                  <td className="p-3">{row.driverName}</td>
+                  <td className="p-3">{row.medicName}</td>
+                  {/* <td className="p-3 text-center">
+                    <button
+                      className="text-indigo-600 hover:text-indigo-800"
+                      title="View PDF"
+                    >
+                      <EyeIcon className="h-5 w-5 inline-block" />
+                    </button>
+                  </td> */}
+                </tr>
+              ))
+            ) : (
               <tr>
                 <td colSpan={6} className="text-center py-6 text-gray-500">
                   No records found

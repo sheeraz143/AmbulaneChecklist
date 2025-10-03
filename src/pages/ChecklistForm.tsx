@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 
 type ChecklistFormData = {
@@ -134,9 +134,41 @@ export default function ChecklistForm(): JSX.Element {
     },
   });
 
+
+  const [damagedParts, setDamagedParts] = useState<string[]>([]);
+
+
+  const toggleDamage = (part: string) => {
+    setDamagedParts((prev) =>
+      prev.includes(part) ? prev.filter((p) => p !== part) : [...prev, part]
+    );
+  };
+
+
+
+  // const onSubmit = async (data: ChecklistFormData) => {
+  //   console.log("Form submitted:", data);
+  //   alert("✅ Form submitted successfully!");
+  // };
+
   const onSubmit = async (data: ChecklistFormData) => {
-    console.log("Form submitted:", data);
-    alert("✅ Form submitted successfully!");
+    const payload = {
+      ...data,
+      damagedParts, // include damages
+    };
+
+    console.log("Form submitted:", payload);
+
+    return;
+
+    try {
+      // replace with your API
+      // await axios.post("/api/ambulance-checklist", payload);
+      alert("Form submitted successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Error submitting form");
+    }
   };
 
   return (
@@ -220,6 +252,49 @@ export default function ChecklistForm(): JSX.Element {
               </div>
             </div>
           </div>
+
+          {/* Damage Marking Section */}
+          <div className="mt-6">
+            <h3 className="font-bold mb-2">Mark Damaged Parts</h3>
+            <div className="relative w-[400px] h-[200px] bg-gray-200 border mx-auto">
+              {/* Front */}
+              <button
+                onClick={() => toggleDamage("front")}
+                className={`absolute top-0 left-[40%] w-[80px] h-[40px] border-2 ${damagedParts.includes("front") ? "bg-red-500/50" : "bg-transparent"
+                  }`}
+              >
+                Front
+              </button>
+
+              {/* Rear */}
+              <button
+                onClick={() => toggleDamage("rear")}
+                className={`absolute bottom-0 left-[40%] w-[80px] h-[40px] border-2 ${damagedParts.includes("rear") ? "bg-red-500/50" : "bg-transparent"
+                  }`}
+              >
+                Rear
+              </button>
+
+              {/* Left */}
+              <button
+                onClick={() => toggleDamage("left")}
+                className={`absolute top-[40%] left-0 w-[60px] h-[60px] border-2 ${damagedParts.includes("left") ? "bg-red-500/50" : "bg-transparent"
+                  }`}
+              >
+                Left
+              </button>
+
+              {/* Right */}
+              <button
+                onClick={() => toggleDamage("right")}
+                className={`absolute top-[40%] right-0 w-[60px] h-[60px] border-2 ${damagedParts.includes("right") ? "bg-red-500/50" : "bg-transparent"
+                  }`}
+              >
+                Right
+              </button>
+            </div>
+          </div>
+
 
           {/* Mileage & Remarks */}
           <div className="grid md:grid-cols-2 gap-4 mt-3">
