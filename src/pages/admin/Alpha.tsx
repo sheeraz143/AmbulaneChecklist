@@ -115,13 +115,13 @@ export default function AlphaPage(): JSX.Element {
           >
             <PlusIcon className="h-5 w-5 mr-1" /> Add Alpha
           </button>
-          <input
+          {/* <input
             type="text"
             placeholder="Filter Alpha ID"
             value={filterId}
             onChange={(e) => setFilterId(e.target.value)}
             className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
-          />
+          /> */}
           <input
             type="text"
             placeholder="Filter Vehicle"

@@ -1,4 +1,3 @@
-// pages/admin/Medic.tsx
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import {
@@ -7,7 +6,7 @@ import {
   updateMedic,
   deleteMedic,
 } from "../../store/medicSlice";
-import { PlusIcon, PencilIcon } from "@heroicons/react/24/outline";
+import { PlusIcon } from "@heroicons/react/24/outline";
 
 export default function Medic() {
   const dispatch = useAppDispatch();
@@ -17,10 +16,8 @@ export default function Medic() {
   const [selected, setSelected] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
 
-  // filters
-  const [filterName, setFilterName] = useState("");
-  const [filterCode, setFilterCode] = useState("");
-  const [filterContact, setFilterContact] = useState("");
+  // unified search
+  const [globalSearch, setGlobalSearch] = useState("");
 
   // modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -61,20 +58,15 @@ export default function Medic() {
       alert("Please fill all fields");
       return;
     }
-    // if (editing) {
-    //   await dispatch(updateMedic({ ...editing, ...form }));
-    // } else {
-    //   await dispatch(addMedic(form));
-    // }
+
+    const result = await dispatch(addMedic(form));
+    if (addMedic.fulfilled.match(result)) {
+      await dispatch(fetchMedics());
+    }
+
     setIsModalOpen(false);
     setEditing(null);
     setForm({ name: "", medicCode: "", contactNumber: "" });
-
-    const result = await dispatch(addMedic(form));
-
-    if (addMedic.fulfilled.match(result)) {
-      await dispatch(fetchMedics()); // ⬅️ reload from backend
-    }
   };
 
   const startEdit = (m: any) => {
@@ -87,17 +79,15 @@ export default function Medic() {
     setIsModalOpen(true);
   };
 
+  // ✅ Unified search filter
   const filtered = list.filter((m) => {
-    const matchName = filterName
-      ? m.name.toLowerCase().includes(filterName.toLowerCase())
-      : true;
-    const matchCode = filterCode
-      ? m.medicCode.toLowerCase().includes(filterCode.toLowerCase())
-      : true;
-    const matchContact = filterContact
-      ? m.contactNumber.includes(filterContact)
-      : true;
-    return matchName && matchCode && matchContact;
+    if (!globalSearch.trim()) return true;
+    const q = globalSearch.toLowerCase();
+    return (
+      m.name.toLowerCase().includes(q) ||
+      m.medicCode.toLowerCase().includes(q) ||
+      m.contactNumber.toLowerCase().includes(q)
+    );
   });
 
   return (
@@ -112,16 +102,17 @@ export default function Medic() {
         <button
           onClick={handleDeleteSelected}
           disabled={selected.length === 0}
-          className={`px-4 py-2 rounded-lg text-white font-semibold ${selected.length > 0
+          className={`px-4 py-2 rounded-lg text-white font-semibold ${
+            selected.length > 0
               ? "bg-red-600 hover:bg-red-700 shadow"
               : "bg-gray-400 cursor-not-allowed"
-            }`}
+          }`}
         >
           Delete Selected
         </button>
 
-        {/* Add + Filters */}
-        <div className="flex flex-wrap gap-2">
+        {/* Add + Unified Filter */}
+        <div className="flex flex-wrap gap-2 items-center">
           <button
             onClick={() => {
               setEditing(null);
@@ -132,26 +123,14 @@ export default function Medic() {
           >
             <PlusIcon className="h-5 w-5 mr-1" /> Add Medic
           </button>
+
+          {/* ✅ Unified search bar */}
           <input
             type="text"
-            placeholder="Filter Name"
-            value={filterName}
-            onChange={(e) => setFilterName(e.target.value)}
-            className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
-          />
-          <input
-            type="text"
-            placeholder="Filter Code"
-            value={filterCode}
-            onChange={(e) => setFilterCode(e.target.value)}
-            className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
-          />
-          <input
-            type="text"
-            placeholder="Filter Contact"
-            value={filterContact}
-            onChange={(e) => setFilterContact(e.target.value)}
-            className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
+            placeholder="Search by Name, Code, or Contact..."
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+            className="border p-2 rounded-lg text-sm w-72 focus:ring-2 focus:ring-indigo-400"
           />
         </div>
       </div>
@@ -171,39 +150,38 @@ export default function Medic() {
               <th className="p-3">Medic Name</th>
               <th className="p-3">Medic Code</th>
               <th className="p-3">Contact Number</th>
-              {/* <th className="p-3 text-center">Actions</th> */}
             </tr>
           </thead>
           <tbody>
-            {filtered.map((m, i) => (
-              <tr
-                key={m.medicId}
-                className={`${i % 2 === 0 ? "bg-gray-50" : "bg-white"
-                  } hover:bg-indigo-50`}
-              >
-                <td className="p-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(m.medicId)}
-                    onChange={() => toggleRow(m.medicId)}
-                  />
-                </td>
-                <td className="p-3">{m.name}</td>
-                <td className="p-3">{m.medicCode}</td>
-                <td className="p-3">{m.contactNumber}</td>
-                {/* <td className="p-3 text-center">
-                  <button
-                    onClick={() => startEdit(m)}
-                    className="text-indigo-600 hover:text-indigo-800"
-                  >
-                    <PencilIcon className="h-5 w-5 inline-block" />
-                  </button>
-                </td> */}
-              </tr>
-            ))}
-            {filtered.length === 0 && (
+            {loading ? (
               <tr>
-                <td colSpan={5} className="text-center py-4 text-gray-500">
+                <td colSpan={4} className="text-center py-6 text-gray-500">
+                  Loading...
+                </td>
+              </tr>
+            ) : filtered.length > 0 ? (
+              filtered.map((m, i) => (
+                <tr
+                  key={m.medicId}
+                  className={`${
+                    i % 2 === 0 ? "bg-gray-50" : "bg-white"
+                  } hover:bg-indigo-50`}
+                >
+                  <td className="p-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(m.medicId)}
+                      onChange={() => toggleRow(m.medicId)}
+                    />
+                  </td>
+                  <td className="p-3">{m.name}</td>
+                  <td className="p-3">{m.medicCode}</td>
+                  <td className="p-3">{m.contactNumber}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="text-center py-6 text-gray-500">
                   No records found
                 </td>
               </tr>
@@ -231,7 +209,9 @@ export default function Medic() {
                 type="text"
                 placeholder="Medic Code"
                 value={form.medicCode}
-                onChange={(e) => setForm({ ...form, medicCode: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, medicCode: e.target.value })
+                }
                 className="border p-2 rounded w-full focus:ring-2 focus:ring-indigo-400"
               />
               <input

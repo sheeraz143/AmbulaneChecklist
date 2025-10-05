@@ -1,64 +1,23 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import { useForm, Controller } from "react-hook-form";
+import { toast, ToastContainer } from "react-toastify";
 
-type ChecklistFormData = {
-  alpha: string;
-  driver: string;
-  mobNo: string;
-  date: string;
-  staffId: string;
-  mileageStart: number;
-  nextServiceMileage: number;
-  atfOil: number;
-  driverRemarks: string;
-  tailLights: boolean;
-  turnSignals: boolean;
-  horns: boolean;
-  wipers: boolean;
-  reverseLights: boolean;
-  rearInteriorLighting: boolean;
-  rearFan: boolean;
-  airCon: boolean;
-  jackHandle: boolean;
-  breakdownSign: boolean;
-  spareTyre: boolean;
-  bodyCondition: boolean;
-  tyrePressure: boolean;
-  tyreCondition: boolean;
-  medicName: string;
-  medicStaffId: string;
-  mainOxygenTank: boolean;
-  portableOxygenTank: boolean;
-  foldableStretcher: boolean;
-  vitalsSignSet: boolean;
-  traumaBag: boolean;
-  aed: boolean;
-  patientSafetyBelt: boolean;
-  stretcher: boolean;
-  wheelchair: boolean;
-  qStrain: boolean;
-  suctionPumpSet: boolean;
-  fireStopExtinguisher: boolean;
-  dRingHooks: boolean;
-  glovesQty: string;
-  billingQty: string;
-  maskQty: string;
-  wetWipesQty: string;
-  antibacteriaQty: string;
-  handSanitizerQty: string;
-  gauzeQty: string;
-  oxygenMaskQty: string;
-  medicRemarks: string;
-};
+type ChecklistFormData = Record<string, any>;
 
-// ✅ Compact reusable checkbox
 function CheckboxItem({
   name,
   control,
   label,
-}: { name: keyof ChecklistFormData; control: any; label: string }) {
+  readOnly,
+}: {
+  name: keyof ChecklistFormData;
+  control: any;
+  label: string;
+  readOnly?: boolean;
+}) {
   return (
-    <label className="flex items-center gap-1 text-gray-700 text-xs sm:text-sm">
+    <label className="flex items-center gap-2 text-gray-700 text-sm">
       <Controller
         name={name}
         control={control}
@@ -66,8 +25,11 @@ function CheckboxItem({
           <input
             type="checkbox"
             checked={!!field.value}
-            onChange={(e) => field.onChange(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            onChange={(e) => !readOnly && field.onChange(e.target.checked)}
+            disabled={readOnly}
+            className={`h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 ${
+              readOnly ? "opacity-50 cursor-not-allowed" : ""
+            }`}
           />
         )}
       />
@@ -77,312 +39,268 @@ function CheckboxItem({
 }
 
 export default function ChecklistForm(): JSX.Element {
-  const {
-    register,
-    handleSubmit,
-    control,
-    formState: { errors },
-  } = useForm<ChecklistFormData>({
-    defaultValues: {
-      alpha: "A1",
-      driver: "John Doe",
-      mobNo: "9876543210",
-      date: new Date().toISOString().slice(0, 10),
-      staffId: "S123",
-      mileageStart: undefined,
-      nextServiceMileage: undefined,
-      atfOil: undefined,
-      driverRemarks: "",
-      tailLights: false,
-      turnSignals: false,
-      horns: false,
-      wipers: false,
-      reverseLights: false,
-      rearInteriorLighting: false,
-      rearFan: false,
-      airCon: false,
-      jackHandle: false,
-      breakdownSign: false,
-      spareTyre: false,
-      bodyCondition: false,
-      tyrePressure: false,
-      tyreCondition: false,
-      medicName: "",
-      medicStaffId: "",
-      mainOxygenTank: false,
-      portableOxygenTank: false,
-      foldableStretcher: false,
-      vitalsSignSet: false,
-      traumaBag: false,
-      aed: false,
-      patientSafetyBelt: false,
-      stretcher: false,
-      wheelchair: false,
-      qStrain: false,
-      suctionPumpSet: false,
-      fireStopExtinguisher: false,
-      dRingHooks: false,
-      glovesQty: "1",
-      billingQty: "2",
-      maskQty: "1",
-      wetWipesQty: "1",
-      antibacteriaQty: "1",
-      handSanitizerQty: "1",
-      gauzeQty: "1",
-      oxygenMaskQty: "1",
-      medicRemarks: "",
-    },
+  const { register, handleSubmit, control, setValue } = useForm<ChecklistFormData>({
+    defaultValues: { date: new Date().toISOString().split("T")[0] },
   });
 
+  const base = import.meta.env.VITE_API_BASE_URL;
+  const [lighting, setLighting] = useState<any[]>([]);
+  const [tools, setTools] = useState<any[]>([]);
+  const [stationery, setStationery] = useState<any[]>([]);
+  const [equipment, setEquipment] = useState<any[]>([]);
+  const [transactionData, setTransactionData] = useState<any>(null);
 
-  const [damagedParts, setDamagedParts] = useState<string[]>([]);
+  const role = localStorage.getItem("userRole") as "Driver" | "Medic";
+  const vehicleNumber = localStorage.getItem("vehicleNumber") || "";
+  const userCode = localStorage.getItem("userCode") || "";
+  const date = localStorage.getItem("date") || new Date().toISOString().split("T")[0];
 
+  const [isReadonly, setIsReadonly] = useState(false);
 
-  const toggleDamage = (part: string) => {
-    setDamagedParts((prev) =>
-      prev.includes(part) ? prev.filter((p) => p !== part) : [...prev, part]
-    );
+  // Format date as dd-mm-yyyy
+  const formatDate = (iso: string) => {
+    const [y, m, d] = iso.split("-");
+    return `${d}-${m}-${y}`;
   };
 
+  // ✅ Fetch Master Lists
+  useEffect(() => {
+    (async () => {
+      try {
+        const [l, t, s, e] = await Promise.all([
+          axios.get(`${base}/api/LightingAndElectrical`),
+          axios.get(`${base}/api/ToolsAndExterior`),
+          axios.get(`${base}/api/MedicStationery`),
+          axios.get(`${base}/api/MedicEquipment`),
+        ]);
+        setLighting(l.data);
+        setTools(t.data);
+        setStationery(s.data);
+        setEquipment(e.data);
+      } catch (err) {
+        console.error("Master data fetch failed:", err);
+      }
+    })();
+  }, [base]);
 
+  // ✅ Fetch Transaction or fallback
+  useEffect(() => {
+    (async () => {
+      try {
+        setValue("vehicleNumber", vehicleNumber);
+        setValue("date", formatDate(date));
 
-  // const onSubmit = async (data: ChecklistFormData) => {
-  //   console.log("Form submitted:", data);
-  //   alert("✅ Form submitted successfully!");
-  // };
+        const res = await axios.get(`${base}/api/Transactions/by-vehicle`, {
+          params: { vehicleNumber, date },
+        });
 
+        if (res.data?.length > 0) {
+          const tx = res.data[0];
+          setTransactionData(tx);
+          setIsReadonly(true); // ✅ lock full form if transaction exists
+
+          // Prefill driver details
+          setValue("driverName", tx.driverName);
+          setValue("driverCode", tx.driverCode);
+          setValue("driverRole", tx.driverRole);
+          setValue("licenseNumber", tx.licenseNumber);
+          setValue("driverContact", tx.driverContact);
+
+          // Prefill medic details
+          setValue("medicName", tx.medicName);
+          setValue("medicCode", tx.medicCode);
+          setValue("medicContact", tx.medicContact);
+
+          // Prefill checklist
+          tx.childTransactions?.forEach((c: any) => {
+            if (c.inputType === "Checkbox") setValue(c.checkListItem, !!c.checkStatus);
+            if (c.inputType === "Value") setValue(`${c.checkListItem}_qty`, c.quantity || "");
+          });
+          return;
+        }
+
+        // Fallback: fetch Driver/Medic info
+        if (role === "Driver") {
+          const driverRes = await axios.get(`${base}/api/Driver`);
+          const user = driverRes.data.find((d: any) => d.driverCode === userCode);
+          if (user) {
+            setValue("driverName", user.name);
+            setValue("driverCode", user.driverCode);
+            setValue("driverRole", user.role);
+            setValue("licenseNumber", user.licenseNumber);
+            setValue("driverContact", user.contactNumber);
+          }
+        } else if (role === "Medic") {
+          const medicRes = await axios.get(`${base}/api/Medics`);
+          const user = medicRes.data.find((m: any) => m.medicCode === userCode);
+          if (user) {
+            setValue("medicName", user.name);
+            setValue("medicCode", user.medicCode);
+            setValue("medicContact", user.contactNumber);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching data:", err);
+      }
+    })();
+  }, [role, userCode, base, vehicleNumber, date, setValue]);
+
+  // ✅ Submit Form
   const onSubmit = async (data: ChecklistFormData) => {
-    const payload = {
-      ...data,
-      damagedParts, // include damages
-    };
-
-    console.log("Form submitted:", payload);
-
-    return;
-
     try {
-      // replace with your API
-      // await axios.post("/api/ambulance-checklist", payload);
-      alert("Form submitted successfully!");
-    } catch (err) {
-      console.error(err);
-      alert("Error submitting form");
+      const childTransactions = [
+        ...lighting.map((i) => ({
+          categoryType: "LightingAndElectricals",
+          inputType: "Checkbox",
+          checkListItem: i.name?.trim() || "",
+          quantity: 0,
+          checkStatus: Boolean(data[i.name]),
+        })),
+        ...tools.map((i) => ({
+          categoryType: "ToolsAndExteriors",
+          inputType: "Checkbox",
+          checkListItem: i.name?.trim() || "",
+          quantity: 0,
+          checkStatus: Boolean(data[i.name]),
+        })),
+        ...stationery.map((i) => ({
+          categoryType: "MedicStationeries",
+          inputType: "Value",
+          checkListItem: i.name?.trim() || "",
+          quantity: Math.max(0, Number(data[`${i.name}_qty`] || 0)),
+          checkStatus: null,
+        })),
+        ...equipment.map((i) => ({
+          categoryType: "MedicEquipments",
+          inputType: "Checkbox",
+          checkListItem: i.name?.trim() || "",
+          quantity: 0,
+          checkStatus: Boolean(data[i.name]),
+        })),
+      ];
+
+      const payload: any = {
+        vehicleNumber,
+        driverName: data.driverName || "",
+        driverCode: data.driverCode || "",
+        driverRole: data.driverRole || "",
+        licenseNumber: data.licenseNumber || "",
+        driverContact: data.driverContact || "",
+        medicName: data.medicName || "",
+        medicCode: data.medicCode || "",
+        medicContact: data.medicContact || "",
+        transactionDate: new Date().toISOString(),
+        createdDate: new Date().toISOString(),
+        updatedDate: new Date().toISOString(),
+        childTransactions,
+        coordinates: [],
+        driverRemarks: data.driverRemarks || "",
+        medicRemarks: data.medicRemarks || "",
+      };
+
+      if (transactionData?.masterId) {
+        payload.masterId = transactionData.masterId;
+        await axios.put(`${base}/api/Transactions/${transactionData.masterId}`, payload);
+        toast.success("Transaction updated successfully!");
+      } else {
+        await axios.post(`${base}/api/Transactions`, payload);
+        toast.success("Transaction created successfully!");
+      }
+    } catch (err: any) {
+      console.error("Submit error:", err.response?.data || err.message);
+      toast.error("Submission failed! Check console.");
     }
   };
 
+  const readableLabel = (key: string) =>
+    key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
+
   return (
-    <div className="from-indigo-500 via-purple-600 to-pink-500 min-h-screen p-3 sm:p-6 flex justify-center">
+    <div className="from-indigo-500 via-purple-600 to-pink-500 min-h-screen p-6 flex justify-center">
+      <ToastContainer position="top-right" />
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="w-full max-w-5xl bg-white rounded-xl shadow-xl p-4 sm:p-6 space-y-4 sm:space-y-6 text-xs sm:text-sm"
+        className="w-full max-w-5xl bg-white rounded-xl shadow-xl p-6 space-y-6 text-sm"
       >
-        <h1 className="text-xl sm:text-3xl font-bold text-center bg-gradient-to-r from-indigo-600 to-pink-500 text-transparent bg-clip-text">
+        <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-indigo-600 to-pink-500 text-transparent bg-clip-text">
           🚑 Ambulance Checklist
         </h1>
 
-        {/* === Driver Section === */}
-        <section className="bg-white rounded-md border border-gray-200 shadow p-3 sm:p-4 space-y-3 sm:space-y-4">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-800 border-b pb-2">Driver Details</h2>
+        {/* === DRIVER SECTION === */}
+        <section className="border border-gray-200 shadow p-4 rounded-md space-y-4">
+          <h2 className="text-lg font-semibold border-b pb-2">Driver Details</h2>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {["vehicleNumber", "date", "driverName", "driverCode", "licenseNumber", "driverContact", "driverRole"].map(
+              (f) => (
+                <label key={f}>
+                  <span className="font-medium">{readableLabel(f)}</span>
+                  <input {...register(f)} readOnly className="w-full p-2 border rounded bg-gray-100" />
+                </label>
+              )
+            )}
+          </div>
 
-          {/* Basic details */}
-          <div className="grid sm:grid-cols-2 gap-3">
-            {[
-              { label: "Driver Name", field: "driver" },
-              { label: "Mobile No", field: "mobNo" },
-              { label: "Date", field: "date", type: "date" },
-              { label: "Staff ID", field: "staffId" },
-              { label: "Alpha", field: "alpha" },
-            ].map(({ label, field, type }) => (
-              <label key={field} className="block">
-                <span className="font-medium">{label}</span>
-                <input
-                  type={type || "text"}
-                  {...register(field as keyof ChecklistFormData)}
-                  readOnly
-                  className="mt-1 w-full rounded-md border-gray-300 bg-gray-100 p-2 text-xs sm:text-sm"
-                />
+          <label>
+            <span className="font-medium">Remarks</span>
+            <textarea
+              {...register("driverRemarks")}
+              readOnly={isReadonly || role === "Medic"}
+              className="w-full border rounded p-2 h-20 mt-2"
+            />
+          </label>
+
+          <div className="grid md:grid-cols-2 gap-4 mt-3">
+            <div>
+              <h3 className="font-semibold text-indigo-700 mb-2">Lighting & Electrical</h3>
+              <div className="grid grid-cols-2 gap-1">
+                {lighting.map((i) => (
+                  <CheckboxItem key={i.id} name={i.name} label={i.name} control={control} readOnly={isReadonly || role === "Medic"} />
+                ))}
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold text-indigo-700 mb-2">Tools & Exterior</h3>
+              <div className="grid grid-cols-2 gap-1">
+                {tools.map((i) => (
+                  <CheckboxItem key={i.id} name={i.name} label={i.name} control={control} readOnly={isReadonly || role === "Medic"} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* === MEDIC SECTION === */}
+        <section className="border border-gray-200 shadow p-4 rounded-md space-y-4">
+          <h2 className="text-lg font-semibold border-b pb-2">Medic Section</h2>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {["medicName", "medicCode", "medicContact"].map((f) => (
+              <label key={f}>
+                <span className="font-medium">{readableLabel(f)}</span>
+                <input {...register(f)} readOnly className="w-full p-2 border rounded bg-gray-100" />
               </label>
             ))}
           </div>
 
-          {/* Checklist Items */}
-          <div className="grid md:grid-cols-2 gap-4 mt-2">
+          <label>
+            <span className="font-medium">Remarks</span>
+            <textarea
+              {...register("medicRemarks")}
+              readOnly={isReadonly || role === "Driver"}
+              className="w-full border rounded p-2 h-20 mt-2"
+            />
+          </label>
+
+          <div className="grid md:grid-cols-2 gap-6 mt-4">
             <div>
-              <h3 className="font-semibold text-indigo-700 mb-2 text-sm">Lighting & Electrical</h3>
+              <h3 className="font-semibold text-indigo-700 mb-2">Medic Equipment</h3>
               <div className="grid grid-cols-2 gap-1">
-                {[
-                  "tailLights",
-                  "turnSignals",
-                  "horns",
-                  "wipers",
-                  "reverseLights",
-                  "rearInteriorLighting",
-                  "rearFan",
-                  "airCon",
-                ].map((field) => (
-                  <CheckboxItem
-                    key={field}
-                    name={field as keyof ChecklistFormData}
-                    control={control}
-                    label={field}
-                  />
+                {equipment.map((i) => (
+                  <CheckboxItem key={i.id} name={i.name} label={i.name} control={control} readOnly={isReadonly || role === "Driver"} />
                 ))}
               </div>
             </div>
-
             <div>
-              <h3 className="font-semibold text-indigo-700 mb-2 text-sm">Tools & Exterior</h3>
-              <div className="grid grid-cols-2 gap-1">
-                {[
-                  "jackHandle",
-                  "breakdownSign",
-                  "spareTyre",
-                  "bodyCondition",
-                  "tyrePressure",
-                  "tyreCondition",
-                ].map((field) => (
-                  <CheckboxItem
-                    key={field}
-                    name={field as keyof ChecklistFormData}
-                    control={control}
-                    label={field}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Damage Marking Section */}
-          <div className="mt-6">
-            <h3 className="font-bold mb-2">Mark Damaged Parts</h3>
-            <div className="relative w-[400px] h-[200px] bg-gray-200 border mx-auto">
-              {/* Front */}
-              <button
-                onClick={() => toggleDamage("front")}
-                className={`absolute top-0 left-[40%] w-[80px] h-[40px] border-2 ${damagedParts.includes("front") ? "bg-red-500/50" : "bg-transparent"
-                  }`}
-              >
-                Front
-              </button>
-
-              {/* Rear */}
-              <button
-                onClick={() => toggleDamage("rear")}
-                className={`absolute bottom-0 left-[40%] w-[80px] h-[40px] border-2 ${damagedParts.includes("rear") ? "bg-red-500/50" : "bg-transparent"
-                  }`}
-              >
-                Rear
-              </button>
-
-              {/* Left */}
-              <button
-                onClick={() => toggleDamage("left")}
-                className={`absolute top-[40%] left-0 w-[60px] h-[60px] border-2 ${damagedParts.includes("left") ? "bg-red-500/50" : "bg-transparent"
-                  }`}
-              >
-                Left
-              </button>
-
-              {/* Right */}
-              <button
-                onClick={() => toggleDamage("right")}
-                className={`absolute top-[40%] right-0 w-[60px] h-[60px] border-2 ${damagedParts.includes("right") ? "bg-red-500/50" : "bg-transparent"
-                  }`}
-              >
-                Right
-              </button>
-            </div>
-          </div>
-
-
-          {/* Mileage & Remarks */}
-          <div className="grid md:grid-cols-2 gap-4 mt-3">
-            <div className="space-y-2">
-              {[
-                { field: "mileageStart", label: "Mileage Start" },
-                { field: "nextServiceMileage", label: "Next Service Mileage EO" },
-                { field: "atfOil", label: "ATF Oil" },
-              ].map(({ field, label }) => (
-                <label key={field} className="block">
-                  <span className="font-medium">{label}</span>
-                  <input
-                    type="number"
-                    {...register(field as keyof ChecklistFormData, {
-                      required: `${label} is required`,
-                      valueAsNumber: true,
-                    })}
-                    className="mt-1 w-full rounded-md border-gray-300 p-2 text-xs sm:text-sm"
-                  />
-                  {errors[field as keyof ChecklistFormData] && (
-                    <p className="text-red-600 text-xs mt-1">
-                      {(errors[field as keyof ChecklistFormData] as any)?.message}
-                    </p>
-                  )}
-                </label>
-              ))}
-            </div>
-
-            <label className="block">
-              <span className="font-medium">Remarks</span>
-              <textarea
-                {...register("driverRemarks")}
-                className="mt-1 w-full rounded-md border-gray-300 p-2 h-24 text-xs sm:text-sm"
-              />
-            </label>
-          </div>
-        </section>
-
-        {/* === Medic Section === */}
-        <section className="bg-white rounded-md border border-gray-200 shadow p-3 sm:p-4 space-y-3 sm:space-y-4">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-800 border-b pb-2">Medic Section</h2>
-
-          {/* Medic Info */}
-          <div className="grid sm:grid-cols-2 gap-3">
-            <label className="block">
-              <span className="font-medium">Medic Name</span>
-              <input
-                {...register("medicName")}
-                className="mt-1 w-full rounded-md border-gray-300 p-2 text-xs sm:text-sm"
-              />
-            </label>
-            <label className="block">
-              <span className="font-medium">Medic Staff ID</span>
-              <input
-                {...register("medicStaffId")}
-                className="mt-1 w-full rounded-md border-gray-300 p-2 text-xs sm:text-sm"
-              />
-            </label>
-          </div>
-
-          {/* Checklist + Items Table */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="grid grid-cols-1 gap-1">
-              {[
-                "mainOxygenTank",
-                "portableOxygenTank",
-                "foldableStretcher",
-                "vitalsSignSet",
-                "traumaBag",
-                "aed",
-                "patientSafetyBelt",
-                "stretcher",
-                "wheelchair",
-                "qStrain",
-                "suctionPumpSet",
-                "fireStopExtinguisher",
-                "dRingHooks",
-              ].map((field) => (
-                <CheckboxItem
-                  key={field}
-                  name={field as keyof ChecklistFormData}
-                  control={control}
-                  label={field}
-                />
-              ))}
-            </div>
-
-            <div>
+              <h3 className="font-semibold text-indigo-700 mb-2">Medic Stationery</h3>
               <table className="w-full border border-gray-200 rounded text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-indigo-100">
@@ -391,48 +309,41 @@ export default function ChecklistForm(): JSX.Element {
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    { label: "Gloves", field: "glovesQty" },
-                    { label: "Billing", field: "billingQty" },
-                    { label: "Mask", field: "maskQty" },
-                    { label: "Wet Wipes", field: "wetWipesQty" },
-                    { label: "Anti-bacteria Spray", field: "antibacteriaQty" },
-                    { label: "Hand Sanitizer", field: "handSanitizerQty" },
-                    { label: "Gauze", field: "gauzeQty" },
-                    { label: "Oxygen Mask", field: "oxygenMaskQty" },
-                  ].map((item, idx) => (
+                  {stationery.map((i, idx) => (
                     <tr key={idx} className={idx % 2 === 0 ? "bg-gray-50" : ""}>
-                      <td className="border border-gray-200 px-2 py-1">{item.label}</td>
+                      <td className="border border-gray-200 px-2 py-1">{i.name}</td>
                       <td className="border border-gray-200 px-2 py-1 text-center">
                         <input
-                          {...register(item.field as keyof ChecklistFormData)}
-                          className="w-full rounded border-gray-300 p-1 text-center text-xs sm:text-sm"
+                          {...register(`${i.name}_qty`)}
+                          type="number"
+                          inputMode="numeric"
+                          min="0"
+                          onInput={(e) => {
+                            const t = e.target as HTMLInputElement;
+                            if (Number(t.value) < 0) t.value = "0";
+                          }}
+                          readOnly={isReadonly || role === "Driver"}
+                          className="w-full rounded border-gray-300 p-1 text-center no-spinner"
                         />
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <label className="block mt-3">
-                <span className="font-medium">Remarks</span>
-                <textarea
-                  {...register("medicRemarks")}
-                  className="mt-1 w-full rounded-md border-gray-300 p-2 h-20 text-xs sm:text-sm"
-                />
-              </label>
             </div>
           </div>
         </section>
 
-        {/* Submit */}
-        <div className="text-center">
-          <button
-            type="submit"
-            className="px-6 py-2 sm:px-8 sm:py-3 rounded-full font-bold text-white shadow bg-gradient-to-r from-indigo-600 to-purple-600 hover:scale-105 transition-transform text-sm sm:text-base"
-          >
-            Submit
-          </button>
-        </div>
+        {!isReadonly && (
+          <div className="text-center">
+            <button
+              type="submit"
+              className="px-8 py-3 rounded-lg font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:scale-105 transition-transform"
+            >
+              Submit
+            </button>
+          </div>
+        )}
       </form>
     </div>
   );

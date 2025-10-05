@@ -129,15 +129,14 @@ export default function AdminDashboard(): JSX.Element {
             {openMaster && !collapsed && (
               <div className="ml-6 mt-2 flex flex-col space-y-1">
                 {[
-                  { path: "drivers", icon: "👨‍✈️", name: "Driver List" },
                   { path: "alpha", icon: "🔤", name: "Alpha" },
+                  { path: "drivers", icon: "👨‍✈️", name: "Driver List" },
+                  { path: "medic", icon: "🩺", name: "Medic List" },
                   { path: "lighting", icon: "💡", name: "Lighting & Electrical" },
                   { path: "tools", icon: "🛠️", name: "Tools & Exterior" },
-                  { path: "medic", icon: "🩺", name: "Medic" },
-                  // { path: "staff", icon: "👥", name: "Staff" },
+                  { path: "medic-equipment", icon: "🧰", name: "Medic Equipment" },
                   { path: "medic-stationery", icon: "📑", name: "Medic Stationery" },
-                  { path: "medic-equipment", icon: "🧰", name: "Medic Equipment" }
-
+                  // { path: "staff", icon: "👥", name: "Staff" },
                 ].map(({ path, icon, name }) => (
                   <NavLink
                     key={path}

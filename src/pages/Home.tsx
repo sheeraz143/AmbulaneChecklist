@@ -67,6 +67,7 @@ export default function Home(): JSX.Element {
   }, []);
 
   // ✅ Submit
+  // ✅ Submit
   const handleSubmit = async () => {
     if (!selectedAlpha || !date || !selectedStaff) {
       alert("Please fill all fields");
@@ -74,6 +75,13 @@ export default function Home(): JSX.Element {
     }
 
     try {
+      // 🔹 Save info in localStorage for ChecklistForm page
+      localStorage.setItem("vehicleNumber", selectedAlpha);
+      localStorage.setItem("date", date);
+      localStorage.setItem("userRole", staffType);
+      localStorage.setItem("userCode", selectedStaff);
+
+      // ✅ Fetch transaction by vehicle
       const res = await axios.get(
         `${import.meta.env.VITE_API_BASE_URL}/api/Transactions/by-vehicle`,
         {
@@ -84,20 +92,18 @@ export default function Home(): JSX.Element {
         }
       );
 
-      console.log("Transaction API response:", res.data);
-
-      // Save staffId to redux + localstorage
+      // Save staffId to redux (optional)
       dispatch(setStaffId(selectedStaff));
       localStorage.setItem("userAuth", "true");
 
-      // Navigate to user form with all data
+      // Navigate to checklist form
       navigate("/user/form", {
         state: {
           alpha: selectedAlpha,
           date,
           staffType,
           staffId: selectedStaff,
-          transactions: res.data, // pass API response forward
+          transactions: res.data, // optional prefill
         },
       });
     } catch (err) {
@@ -105,6 +111,7 @@ export default function Home(): JSX.Element {
       alert("Failed to fetch transactions");
     }
   };
+
 
   const handleReset = () => {
     setVehicleSearch("");
@@ -123,15 +130,15 @@ export default function Home(): JSX.Element {
   const staffList =
     staffType === "Driver"
       ? drivers.map((d) => ({
-          id: d.driverId,
-          code: d.driverCode,
-          name: d.name,
-        }))
+        id: d.driverId,
+        code: d.driverCode,
+        name: d.name,
+      }))
       : medics.map((m) => ({
-          id: m.medicId,
-          code: m.medicCode,
-          name: m.name,
-        }));
+        id: m.medicId,
+        code: m.medicCode,
+        name: m.name,
+      }));
 
   // ✅ Close dropdown on outside click
   useEffect(() => {

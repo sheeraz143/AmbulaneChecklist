@@ -49,7 +49,7 @@ export default function ChangePassword(): JSX.Element {
             type="password"
             {...register("newPassword", {
               required: "New password is required",
-              minLength: { value: 6, message: "Password must be at least 6 characters" },
+              // minLength: { value: 6, message: "Password must be at least 6 characters" },
             })}
             className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-indigo-400"
             placeholder="Enter your new password"
