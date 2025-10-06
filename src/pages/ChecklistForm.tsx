@@ -45,6 +45,9 @@ export default function ChecklistForm(): JSX.Element {
       defaultValues: { date: new Date().toISOString().split("T")[0] },
     });
 
+  const [driverReadonly, setDriverReadonly] = useState(false);
+  const [medicReadonly, setMedicReadonly] = useState(false);
+
   const base = import.meta.env.VITE_API_BASE_URL;
   const [lighting, setLighting] = useState<any[]>([]);
   const [tools, setTools] = useState<any[]>([]);
@@ -58,25 +61,22 @@ export default function ChecklistForm(): JSX.Element {
   const date =
     localStorage.getItem("date") || new Date().toISOString().split("T")[0];
 
-  const [isReadonly, setIsReadonly] = useState(false);
-
   const [clickPoints, setClickPoints] = useState<{ x: number; y: number }[]>(
     []
   );
   const imageRef = useRef<HTMLDivElement>(null);
 
+  // 🖱️ Handle ambulance image clicks (Driver only)
   const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
-    if (!imageRef.current) return;
-
-    const rect = imageRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left; // relative X
-    const y = e.clientY - rect.top; // relative Y
-
-    // Add new coordinate
+    if (driverReadonly || role === "Medic") return;
+    const img = e.currentTarget;
+    const rect = img.getBoundingClientRect();
+    const x = Math.round(e.clientX - rect.left);
+    const y = Math.round(e.clientY - rect.top);
     setClickPoints((prev) => [...prev, { x, y }]);
   };
 
-  // Format date as dd-mm-yyyy
+  // Format date to dd-mm-yyyy
   const formatDate = (iso: string) => {
     const [y, m, d] = iso.split("-");
     return `${d}-${m}-${y}`;
@@ -102,7 +102,7 @@ export default function ChecklistForm(): JSX.Element {
     })();
   }, [base]);
 
-  // ✅ Fetch Transaction or fallback
+  // ✅ Fetch Transaction / Prefill Driver or Medic Details
   useEffect(() => {
     (async () => {
       try {
@@ -116,21 +116,42 @@ export default function ChecklistForm(): JSX.Element {
         if (res.data?.length > 0) {
           const tx = res.data[0];
           setTransactionData(tx);
-          setIsReadonly(true); // ✅ lock full form if transaction exists
 
-          // Prefill driver details
+          if (role === "Driver") {
+            setDriverReadonly(true);
+            setMedicReadonly(true);
+          } else if (role === "Medic") {
+            setDriverReadonly(true);
+            setMedicReadonly(false);
+          }
+
+          // Prefill driver section
           setValue("driverName", tx.driverName);
           setValue("driverCode", tx.driverCode);
           setValue("driverRole", tx.driverRole);
           setValue("licenseNumber", tx.licenseNumber);
           setValue("driverContact", tx.driverContact);
+          setValue("driverRemarks", tx.driverRemarks);
 
-          // Prefill medic details
+          // Prefill medic section (readonly fields)
           setValue("medicName", tx.medicName);
           setValue("medicCode", tx.medicCode);
           setValue("medicContact", tx.medicContact);
+          setValue("medicRemarks", tx.medicRemarks);
 
-          // Prefill checklist
+          setValue("mileageStart", tx.mileageStart || "");
+          setValue("nextServiceMileageEo", tx.nextServiceMileageEo || "");
+          setValue("atfoil", tx.atfoil || "");
+
+          if (tx.coordinates?.length > 0) {
+            setClickPoints(
+              tx.coordinates.map((c: any) => ({
+                x: c.xaxis,
+                y: c.yaxis,
+              }))
+            );
+          }
+
           tx.childTransactions?.forEach((c: any) => {
             if (c.inputType === "Checkbox")
               setValue(c.checkListItem, !!c.checkStatus);
@@ -140,8 +161,10 @@ export default function ChecklistForm(): JSX.Element {
           return;
         }
 
-        // Fallback: fetch Driver/Medic info
+        // If no transaction found
         if (role === "Driver") {
+          setDriverReadonly(false);
+          setMedicReadonly(true);
           const driverRes = await axios.get(`${base}/api/Driver`);
           const user = driverRes.data.find(
             (d: any) => d.driverCode === userCode
@@ -154,6 +177,10 @@ export default function ChecklistForm(): JSX.Element {
             setValue("driverContact", user.contactNumber);
           }
         } else if (role === "Medic") {
+          setDriverReadonly(true);
+          setMedicReadonly(false);
+
+          // ✅ Always fetch medic info and show (readonly)
           const medicRes = await axios.get(`${base}/api/Medics`);
           const user = medicRes.data.find((m: any) => m.medicCode === userCode);
           if (user) {
@@ -167,11 +194,9 @@ export default function ChecklistForm(): JSX.Element {
       }
     })();
   }, [role, userCode, base, vehicleNumber, date, setValue]);
-
   // ✅ Submit Form
   const onSubmit = async (data: ChecklistFormData) => {
     try {
-      // ✅ Build child transaction data
       const childTransactions = [
         ...lighting.map((i) => ({
           categoryType: "LightingAndElectricals",
@@ -203,88 +228,64 @@ export default function ChecklistForm(): JSX.Element {
         })),
       ];
 
-      // ✅ Prepare payload
-      const payload: any = {
+      const [day, month, year] = (data.date || "").split("-");
+      const formattedDate = `${year}-${month}-${day}`;
+
+      const payload = {
         vehicleNumber,
         driverName: data.driverName || "",
         driverCode: data.driverCode || "",
         driverRole: data.driverRole || "",
         licenseNumber: data.licenseNumber || "",
         driverContact: data.driverContact || "",
-        mileageStart: data.mileageStart || "",
-        nextServiceMileageEo: data.nextServiceMileageEo || "",
-        atfoil: data.atfoil || "",
+        mileageStart: Number(data.mileageStart) || "",
+        nextServiceMileageEo: Number(data.nextServiceMileageEo) || "",
+        atfoil: Number(data.atfoil) || "",
         medicName: data.medicName || "",
         medicCode: data.medicCode || "",
         medicContact: data.medicContact || "",
-        transactionDate: new Date().toISOString(),
-        createdDate: new Date().toISOString(),
-        updatedDate: new Date().toISOString(),
+        transactionDate: formattedDate,
+        createdDate: formattedDate,
+        updatedDate: formattedDate,
         childTransactions,
-        // coordinates: [],
         driverRemarks: data.driverRemarks || "",
         medicRemarks: data.medicRemarks || "",
-        coordinates: clickPoints.map((p, idx) => ({
-          coordinateId: idx + 1,
+        coordinates: clickPoints.map((p) => ({
           masterId: transactionData?.masterId || 0,
-          xaxis: Math.round(p.x),
-          yaxis: Math.round(p.y),
+          xaxis: p.x,
+          yaxis: p.y,
         })),
       };
 
-      // ✅ Check if updating existing transaction or creating new
+      let res;
       if (transactionData?.masterId) {
-        payload.masterId = transactionData.masterId;
-
-        const res = await axios.put(
+        res = await axios.put(
           `${base}/api/Transactions/${transactionData.masterId}`,
           payload
         );
-
-        // ✅ Show backend response message if available
-        const message =
-          res.data?.message ||
-          res.data?.errorDescription ||
-          "Transaction updated successfully!";
-        toast.success(message);
       } else {
-        try {
-          const res = await axios.post(`${base}/api/Transactions`, payload);
-
-          // ✅ Handle both success and warning responses from API
-          const message =
-            res.data?.message ||
-            res.data?.errorDescription ||
-            "Transaction created successfully!";
-          toast.success(message);
-        } catch (err: any) {
-          // ✅ Capture backend error response
-          const apiMessage =
-            err.response?.data?.errorDescription ||
-            err.response?.data?.message ||
-            err.response?.data?.error ||
-            err.message ||
-            "Submission failed!";
-          toast.error(apiMessage);
-          console.error("Submit error:", apiMessage);
-          return;
-        }
+        res = await axios.post(`${base}/api/Transactions`, payload);
       }
+
+      toast.success(
+        res.data?.message ||
+          res.data?.errorDescription ||
+          "Transaction saved successfully!"
+      );
     } catch (err: any) {
-      // ✅ Global error handling
-      const apiMessage =
+      const msg =
         err.response?.data?.errorDescription ||
         err.response?.data?.message ||
         err.message ||
-        "Something went wrong!";
-      toast.error(apiMessage);
-      console.error("Submit error:", apiMessage);
+        "Submission failed!";
+      toast.error(msg);
+      console.error("Submit error:", msg);
     }
   };
 
-  const readableLabel = (key: string) =>
-    key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
-
+  // ==============================
+  // ✅ UI SECTION
+  // ==============================
   return (
     <div className="from-indigo-500 via-purple-600 to-pink-500 min-h-screen p-6 flex justify-center">
       <ToastContainer position="top-right" />
@@ -297,66 +298,33 @@ export default function ChecklistForm(): JSX.Element {
         </h1>
 
         {/* === DRIVER SECTION === */}
-        {/* === DRIVER SECTION === */}
         <section className="border border-gray-200 shadow p-4 rounded-md space-y-4">
           <h2 className="text-lg font-semibold border-b pb-2">
             Driver Details
           </h2>
 
-          {/* === Top Row: Driver Inputs (2 per row) === */}
+          {/* Top Fields */}
           <div className="grid sm:grid-cols-2 gap-4">
-            {/* Row 1 */}
-            <div className="flex flex-col">
-              <label className="font-medium">Vehicle Number</label>
-              <input
-                {...register("vehicleNumber")}
-                readOnly
-                className="w-full p-2 border rounded bg-gray-100"
-              />
-            </div>
-
-            <div className="flex flex-col">
-              <label className="font-medium">Date</label>
-              <input
-                {...register("date")}
-                readOnly
-                className="w-full p-2 border rounded bg-gray-100"
-              />
-            </div>
-
-            {/* Row 2 */}
-            <div className="flex flex-col">
-              <label className="font-medium">Driver Name</label>
-              <input
-                {...register("driverName")}
-                readOnly
-                className="w-full p-2 border rounded bg-gray-100"
-              />
-            </div>
-
-            <div className="flex flex-col">
-              <label className="font-medium">Driver Code</label>
-              <input
-                {...register("driverCode")}
-                readOnly
-                className="w-full p-2 border rounded bg-gray-100"
-              />
-            </div>
-
-            {/* Row 3 */}
-            <div className="flex flex-col">
-              <label className="font-medium">Driver Role</label>
-              <input
-                {...register("driverRole")}
-                readOnly
-                className="w-full p-2 border rounded bg-gray-100"
-              />
-            </div>
+            {[
+              "vehicleNumber",
+              "date",
+              "driverName",
+              "driverCode",
+              "driverRole",
+            ].map((f) => (
+              <div key={f}>
+                <label className="font-medium capitalize">{f}</label>
+                <input
+                  {...register(f)}
+                  readOnly
+                  className="w-full p-2 border rounded bg-gray-100"
+                />
+              </div>
+            ))}
           </div>
 
-          {/* === Lighting & Tools & Image Row === */}
+          {/* Lighting + Tools + Image */}
           <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-6 mt-4">
-            {/* Lighting */}
             <div>
               <h3 className="font-semibold text-indigo-700 mb-2">
                 Lighting & Electrical
@@ -368,13 +336,12 @@ export default function ChecklistForm(): JSX.Element {
                     name={i.name}
                     label={i.name}
                     control={control}
-                    readOnly={isReadonly || role === "Medic"}
+                    readOnly={driverReadonly}
                   />
                 ))}
               </div>
             </div>
 
-            {/* Tools */}
             <div>
               <h3 className="font-semibold text-indigo-700 mb-2">
                 Tools & Exterior
@@ -386,93 +353,78 @@ export default function ChecklistForm(): JSX.Element {
                     name={i.name}
                     label={i.name}
                     control={control}
-                    readOnly={isReadonly || role === "Medic"}
+                    readOnly={driverReadonly}
                   />
                 ))}
               </div>
             </div>
 
-            {/* Ambulance Image with Clear Button */}
+            {/* Image Section */}
             <div className="flex flex-col items-center">
               <div className="relative" ref={imageRef}>
                 <img
                   src={ambulanceImg}
                   alt="Ambulance"
                   onClick={handleImageClick}
-                  className="w-[280px] h-auto border rounded cursor-crosshair select-none shadow-sm"
+                  className={`w-[280px] h-auto border rounded shadow-sm ${
+                    driverReadonly
+                      ? "cursor-not-allowed opacity-70"
+                      : "cursor-crosshair"
+                  }`}
                 />
-                {clickPoints.map((point, index) => (
+                {clickPoints.map((p, i) => (
                   <div
-                    key={index}
-                    className="absolute text-green-500 font-bold text-lg"
+                    key={i}
+                    className="absolute font-extrabold text-cyan-400"
                     style={{
-                      top: `${point.y - 10}px`,
-                      left: `${point.x - 10}px`,
-                      pointerEvents: "none",
+                      top: `${p.y}px`,
+                      left: `${p.x}px`,
+                      fontSize: "28px",
+                      textShadow: "0 0 6px #06b6d4, 0 0 10px #0891b2",
+                      transform: "translate(-50%, -50%)",
                     }}
                   >
                     ✕
                   </div>
                 ))}
               </div>
-
-              {/* Clear Marks Button */}
               <button
                 type="button"
                 onClick={() => setClickPoints([])}
-                className="mt-3 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 rounded-lg shadow-md transition"
+                disabled={driverReadonly}
+                className={`mt-3 px-4 py-2 text-sm font-medium rounded-lg shadow-md transition ${
+                  driverReadonly
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "text-white bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
+                }`}
               >
                 Clear Marks
               </button>
             </div>
           </div>
 
-          {/* === Mileage + Remarks Row === */}
+          {/* Mileage */}
           <div className="grid md:grid-cols-2 gap-6 mt-6">
-            {/* Left side - Mileage fields */}
             <div className="space-y-3">
-              <label className="block">
-                <span className="font-medium">Mileage Start</span>
-                <input
-                  {...register("mileageStart")}
-                  type="number"
-                  readOnly={isReadonly || role === "Medic"}
-                  placeholder="Enter start mileage"
-                  className="w-full p-2 border rounded"
-                />
-              </label>
-
-              <label className="block">
-                <span className="font-medium">Next Service Mileage EO</span>
-                <input
-                  {...register("nextServiceMileageEo")}
-                  type="number"
-                  readOnly={isReadonly || role === "Medic"}
-                  placeholder="Enter next service mileage"
-                  className="w-full p-2 border rounded"
-                />
-              </label>
-
-              <label className="block">
-                <span className="font-medium">ATF Oil</span>
-                <input
-                  {...register("atfoil")}
-                  type="number"
-                  readOnly={isReadonly || role === "Medic"}
-                  placeholder="Enter ATF Oil"
-                  className="w-full p-2 border rounded"
-                />
-              </label>
+              {["mileageStart", "nextServiceMileageEo", "atfoil"].map((f) => (
+                <label key={f}>
+                  <span className="font-medium capitalize">{f}</span>
+                  <input
+                    {...register(f)}
+                    type="number"
+                    readOnly={driverReadonly}
+                    className="w-full p-2 border rounded"
+                  />
+                </label>
+              ))}
             </div>
 
-            {/* Right side - Remarks */}
             <div>
-              <label className="block">
+              <label>
                 <span className="font-medium">Remarks</span>
                 <textarea
                   {...register("driverRemarks")}
-                  readOnly={isReadonly || role === "Medic"}
-                  placeholder="Enter remarks..."
+                  readOnly={driverReadonly}
                   className="w-full border rounded p-2 h-[150px] mt-1"
                 />
               </label>
@@ -483,16 +435,17 @@ export default function ChecklistForm(): JSX.Element {
         {/* === MEDIC SECTION === */}
         <section className="border border-gray-200 shadow p-4 rounded-md space-y-4">
           <h2 className="text-lg font-semibold border-b pb-2">Medic Section</h2>
+
           <div className="grid sm:grid-cols-2 gap-4">
             {["medicName", "medicCode", "medicContact"].map((f) => (
-              <label key={f}>
-                <span className="font-medium">{readableLabel(f)}</span>
+              <div key={f}>
+                <label className="font-medium capitalize">{f}</label>
                 <input
                   {...register(f)}
                   readOnly
                   className="w-full p-2 border rounded bg-gray-100"
                 />
-              </label>
+              </div>
             ))}
           </div>
 
@@ -500,7 +453,7 @@ export default function ChecklistForm(): JSX.Element {
             <span className="font-medium">Remarks</span>
             <textarea
               {...register("medicRemarks")}
-              readOnly={isReadonly || role === "Driver"}
+              readOnly={medicReadonly}
               className="w-full border rounded p-2 h-20 mt-2"
             />
           </label>
@@ -517,11 +470,12 @@ export default function ChecklistForm(): JSX.Element {
                     name={i.name}
                     label={i.name}
                     control={control}
-                    readOnly={isReadonly || role === "Driver"}
+                    readOnly={medicReadonly}
                   />
                 ))}
               </div>
             </div>
+
             <div>
               <h3 className="font-semibold text-indigo-700 mb-2">
                 Medic Stationery
@@ -547,14 +501,9 @@ export default function ChecklistForm(): JSX.Element {
                         <input
                           {...register(`${i.name}_qty`)}
                           type="number"
-                          inputMode="numeric"
                           min="0"
-                          onInput={(e) => {
-                            const t = e.target as HTMLInputElement;
-                            if (Number(t.value) < 0) t.value = "0";
-                          }}
-                          readOnly={isReadonly || role === "Driver"}
-                          className="w-full rounded border-gray-300 p-1 text-center no-spinner"
+                          readOnly={medicReadonly}
+                          className="w-full rounded border-gray-300 p-1 text-center"
                         />
                       </td>
                     </tr>
@@ -565,7 +514,9 @@ export default function ChecklistForm(): JSX.Element {
           </div>
         </section>
 
-        {!isReadonly && (
+        {/* Submit */}
+        {(!driverReadonly && role === "Driver") ||
+        (!medicReadonly && role === "Medic") ? (
           <div className="text-center">
             <button
               type="submit"
@@ -574,7 +525,7 @@ export default function ChecklistForm(): JSX.Element {
               Submit
             </button>
           </div>
-        )}
+        ) : null}
       </form>
     </div>
   );
