@@ -39,9 +39,10 @@ function CheckboxItem({
 }
 
 export default function ChecklistForm(): JSX.Element {
-  const { register, handleSubmit, control, setValue } = useForm<ChecklistFormData>({
-    defaultValues: { date: new Date().toISOString().split("T")[0] },
-  });
+  const { register, handleSubmit, control, setValue } =
+    useForm<ChecklistFormData>({
+      defaultValues: { date: new Date().toISOString().split("T")[0] },
+    });
 
   const base = import.meta.env.VITE_API_BASE_URL;
   const [lighting, setLighting] = useState<any[]>([]);
@@ -53,7 +54,8 @@ export default function ChecklistForm(): JSX.Element {
   const role = localStorage.getItem("userRole") as "Driver" | "Medic";
   const vehicleNumber = localStorage.getItem("vehicleNumber") || "";
   const userCode = localStorage.getItem("userCode") || "";
-  const date = localStorage.getItem("date") || new Date().toISOString().split("T")[0];
+  const date =
+    localStorage.getItem("date") || new Date().toISOString().split("T")[0];
 
   const [isReadonly, setIsReadonly] = useState(false);
 
@@ -113,8 +115,10 @@ export default function ChecklistForm(): JSX.Element {
 
           // Prefill checklist
           tx.childTransactions?.forEach((c: any) => {
-            if (c.inputType === "Checkbox") setValue(c.checkListItem, !!c.checkStatus);
-            if (c.inputType === "Value") setValue(`${c.checkListItem}_qty`, c.quantity || "");
+            if (c.inputType === "Checkbox")
+              setValue(c.checkListItem, !!c.checkStatus);
+            if (c.inputType === "Value")
+              setValue(`${c.checkListItem}_qty`, c.quantity || "");
           });
           return;
         }
@@ -122,7 +126,9 @@ export default function ChecklistForm(): JSX.Element {
         // Fallback: fetch Driver/Medic info
         if (role === "Driver") {
           const driverRes = await axios.get(`${base}/api/Driver`);
-          const user = driverRes.data.find((d: any) => d.driverCode === userCode);
+          const user = driverRes.data.find(
+            (d: any) => d.driverCode === userCode
+          );
           if (user) {
             setValue("driverName", user.name);
             setValue("driverCode", user.driverCode);
@@ -148,6 +154,7 @@ export default function ChecklistForm(): JSX.Element {
   // ✅ Submit Form
   const onSubmit = async (data: ChecklistFormData) => {
     try {
+      // ✅ Build child transaction data
       const childTransactions = [
         ...lighting.map((i) => ({
           categoryType: "LightingAndElectricals",
@@ -179,6 +186,7 @@ export default function ChecklistForm(): JSX.Element {
         })),
       ];
 
+      // ✅ Prepare payload
       const payload: any = {
         vehicleNumber,
         driverName: data.driverName || "",
@@ -186,6 +194,9 @@ export default function ChecklistForm(): JSX.Element {
         driverRole: data.driverRole || "",
         licenseNumber: data.licenseNumber || "",
         driverContact: data.driverContact || "",
+        mileageStart: data.mileageStart || "",
+        nextServiceMileageEo: data.nextServiceMileageEo || "",
+        atfoil: data.atfoil || "",
         medicName: data.medicName || "",
         medicCode: data.medicCode || "",
         medicContact: data.medicContact || "",
@@ -198,17 +209,53 @@ export default function ChecklistForm(): JSX.Element {
         medicRemarks: data.medicRemarks || "",
       };
 
+      // ✅ Check if updating existing transaction or creating new
       if (transactionData?.masterId) {
         payload.masterId = transactionData.masterId;
-        await axios.put(`${base}/api/Transactions/${transactionData.masterId}`, payload);
-        toast.success("Transaction updated successfully!");
+
+        const res = await axios.put(
+          `${base}/api/Transactions/${transactionData.masterId}`,
+          payload
+        );
+
+        // ✅ Show backend response message if available
+        const message =
+          res.data?.message ||
+          res.data?.errorDescription ||
+          "Transaction updated successfully!";
+        toast.success(message);
       } else {
-        await axios.post(`${base}/api/Transactions`, payload);
-        toast.success("Transaction created successfully!");
+        try {
+          const res = await axios.post(`${base}/api/Transactions`, payload);
+
+          // ✅ Handle both success and warning responses from API
+          const message =
+            res.data?.message ||
+            res.data?.errorDescription ||
+            "Transaction created successfully!";
+          toast.success(message);
+        } catch (err: any) {
+          // ✅ Capture backend error response
+          const apiMessage =
+            err.response?.data?.errorDescription ||
+            err.response?.data?.message ||
+            err.response?.data?.error ||
+            err.message ||
+            "Submission failed!";
+          toast.error(apiMessage);
+          console.error("Submit error:", apiMessage);
+          return;
+        }
       }
     } catch (err: any) {
-      console.error("Submit error:", err.response?.data || err.message);
-      toast.error("Submission failed! Check console.");
+      // ✅ Global error handling
+      const apiMessage =
+        err.response?.data?.errorDescription ||
+        err.response?.data?.message ||
+        err.message ||
+        "Something went wrong!";
+      toast.error(apiMessage);
+      console.error("Submit error:", apiMessage);
     }
   };
 
@@ -227,42 +274,115 @@ export default function ChecklistForm(): JSX.Element {
         </h1>
 
         {/* === DRIVER SECTION === */}
+        {/* === DRIVER SECTION === */}
         <section className="border border-gray-200 shadow p-4 rounded-md space-y-4">
-          <h2 className="text-lg font-semibold border-b pb-2">Driver Details</h2>
+          <h2 className="text-lg font-semibold border-b pb-2">
+            Driver Details
+          </h2>
+
+          {/* Top driver details */}
           <div className="grid sm:grid-cols-2 gap-4">
-            {["vehicleNumber", "date", "driverName", "driverCode", "licenseNumber", "driverContact", "driverRole"].map(
-              (f) => (
-                <label key={f}>
-                  <span className="font-medium">{readableLabel(f)}</span>
-                  <input {...register(f)} readOnly className="w-full p-2 border rounded bg-gray-100" />
-                </label>
-              )
-            )}
+            {[
+              "vehicleNumber",
+              "date",
+              "driverName",
+              "driverCode",
+              "licenseNumber",
+              "driverContact",
+              "driverRole",
+            ].map((f) => (
+              <label key={f} className="block">
+                <span className="font-medium">{readableLabel(f)}</span>
+                <input
+                  {...register(f)}
+                  readOnly
+                  className="w-full p-2 border rounded bg-gray-100"
+                />
+              </label>
+            ))}
           </div>
 
-          <label>
-            <span className="font-medium">Remarks</span>
-            <textarea
-              {...register("driverRemarks")}
-              readOnly={isReadonly || role === "Medic"}
-              className="w-full border rounded p-2 h-20 mt-2"
-            />
-          </label>
+          {/* Mileage fields (stacked vertically) + Remarks on right */}
+          <div className="grid sm:grid-cols-2 gap-4 items-start">
+            {/* Left side - stacked mileage inputs */}
+            <div className="space-y-3">
+              <label className="block">
+                <span className="font-medium">Mileage Start</span>
+                <input
+                  {...register("mileageStart")}
+                  type="number"
+                  readOnly={isReadonly || role === "Medic"}
+                  placeholder="Enter start mileage"
+                  className="w-full p-2 border rounded"
+                />
+              </label>
 
+              <label className="block">
+                <span className="font-medium">Next Service Mileage EO</span>
+                <input
+                  {...register("nextServiceMileageEo")}
+                  type="number"
+                  readOnly={isReadonly || role === "Medic"}
+                  placeholder="Enter next service mileage"
+                  className="w-full p-2 border rounded"
+                />
+              </label>
+
+              <label className="block">
+                <span className="font-medium">ATF Oil</span>
+                <input
+                  {...register("atfoil")}
+                  type="number"
+                  readOnly={isReadonly || role === "Medic"}
+                  placeholder="Enter ATF Oil"
+                  className="w-full p-2 border rounded"
+                />
+              </label>
+            </div>
+
+            {/* Right side - Remarks */}
+            <label className="block">
+              <span className="font-medium">Remarks</span>
+              <textarea
+                {...register("driverRemarks")}
+                readOnly={isReadonly || role === "Medic"}
+                placeholder="Enter remarks..."
+                className="w-full border rounded p-2 h-[170px] mt-1"
+              />
+            </label>
+          </div>
+
+          {/* Lighting and Tools sections */}
           <div className="grid md:grid-cols-2 gap-4 mt-3">
             <div>
-              <h3 className="font-semibold text-indigo-700 mb-2">Lighting & Electrical</h3>
+              <h3 className="font-semibold text-indigo-700 mb-2">
+                Lighting & Electrical
+              </h3>
               <div className="grid grid-cols-2 gap-1">
                 {lighting.map((i) => (
-                  <CheckboxItem key={i.id} name={i.name} label={i.name} control={control} readOnly={isReadonly || role === "Medic"} />
+                  <CheckboxItem
+                    key={i.id}
+                    name={i.name}
+                    label={i.name}
+                    control={control}
+                    readOnly={isReadonly || role === "Medic"}
+                  />
                 ))}
               </div>
             </div>
             <div>
-              <h3 className="font-semibold text-indigo-700 mb-2">Tools & Exterior</h3>
+              <h3 className="font-semibold text-indigo-700 mb-2">
+                Tools & Exterior
+              </h3>
               <div className="grid grid-cols-2 gap-1">
                 {tools.map((i) => (
-                  <CheckboxItem key={i.id} name={i.name} label={i.name} control={control} readOnly={isReadonly || role === "Medic"} />
+                  <CheckboxItem
+                    key={i.id}
+                    name={i.name}
+                    label={i.name}
+                    control={control}
+                    readOnly={isReadonly || role === "Medic"}
+                  />
                 ))}
               </div>
             </div>
@@ -276,7 +396,11 @@ export default function ChecklistForm(): JSX.Element {
             {["medicName", "medicCode", "medicContact"].map((f) => (
               <label key={f}>
                 <span className="font-medium">{readableLabel(f)}</span>
-                <input {...register(f)} readOnly className="w-full p-2 border rounded bg-gray-100" />
+                <input
+                  {...register(f)}
+                  readOnly
+                  className="w-full p-2 border rounded bg-gray-100"
+                />
               </label>
             ))}
           </div>
@@ -292,26 +416,42 @@ export default function ChecklistForm(): JSX.Element {
 
           <div className="grid md:grid-cols-2 gap-6 mt-4">
             <div>
-              <h3 className="font-semibold text-indigo-700 mb-2">Medic Equipment</h3>
+              <h3 className="font-semibold text-indigo-700 mb-2">
+                Medic Equipment
+              </h3>
               <div className="grid grid-cols-2 gap-1">
                 {equipment.map((i) => (
-                  <CheckboxItem key={i.id} name={i.name} label={i.name} control={control} readOnly={isReadonly || role === "Driver"} />
+                  <CheckboxItem
+                    key={i.id}
+                    name={i.name}
+                    label={i.name}
+                    control={control}
+                    readOnly={isReadonly || role === "Driver"}
+                  />
                 ))}
               </div>
             </div>
             <div>
-              <h3 className="font-semibold text-indigo-700 mb-2">Medic Stationery</h3>
+              <h3 className="font-semibold text-indigo-700 mb-2">
+                Medic Stationery
+              </h3>
               <table className="w-full border border-gray-200 rounded text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-indigo-100">
-                    <th className="border border-gray-200 px-2 py-1 text-left">Item</th>
-                    <th className="border border-gray-200 px-2 py-1 text-center">Qty</th>
+                    <th className="border border-gray-200 px-2 py-1 text-left">
+                      Item
+                    </th>
+                    <th className="border border-gray-200 px-2 py-1 text-center">
+                      Qty
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {stationery.map((i, idx) => (
                     <tr key={idx} className={idx % 2 === 0 ? "bg-gray-50" : ""}>
-                      <td className="border border-gray-200 px-2 py-1">{i.name}</td>
+                      <td className="border border-gray-200 px-2 py-1">
+                        {i.name}
+                      </td>
                       <td className="border border-gray-200 px-2 py-1 text-center">
                         <input
                           {...register(`${i.name}_qty`)}
