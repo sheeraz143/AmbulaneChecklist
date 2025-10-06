@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { useForm, Controller } from "react-hook-form";
 import { toast, ToastContainer } from "react-toastify";
+import ambulanceImg from "../../src/assets/ambulance.jpeg";
 
 type ChecklistFormData = Record<string, any>;
 
@@ -58,6 +59,22 @@ export default function ChecklistForm(): JSX.Element {
     localStorage.getItem("date") || new Date().toISOString().split("T")[0];
 
   const [isReadonly, setIsReadonly] = useState(false);
+
+  const [clickPoints, setClickPoints] = useState<{ x: number; y: number }[]>(
+    []
+  );
+  const imageRef = useRef<HTMLDivElement>(null);
+
+  const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
+    if (!imageRef.current) return;
+
+    const rect = imageRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left; // relative X
+    const y = e.clientY - rect.top; // relative Y
+
+    // Add new coordinate
+    setClickPoints((prev) => [...prev, { x, y }]);
+  };
 
   // Format date as dd-mm-yyyy
   const formatDate = (iso: string) => {
@@ -204,9 +221,15 @@ export default function ChecklistForm(): JSX.Element {
         createdDate: new Date().toISOString(),
         updatedDate: new Date().toISOString(),
         childTransactions,
-        coordinates: [],
+        // coordinates: [],
         driverRemarks: data.driverRemarks || "",
         medicRemarks: data.medicRemarks || "",
+        coordinates: clickPoints.map((p, idx) => ({
+          coordinateId: idx + 1,
+          masterId: transactionData?.masterId || 0,
+          xaxis: Math.round(p.x),
+          yaxis: Math.round(p.y),
+        })),
       };
 
       // ✅ Check if updating existing transaction or creating new
@@ -280,31 +303,133 @@ export default function ChecklistForm(): JSX.Element {
             Driver Details
           </h2>
 
-          {/* Top driver details */}
+          {/* === Top Row: Driver Inputs (2 per row) === */}
           <div className="grid sm:grid-cols-2 gap-4">
-            {[
-              "vehicleNumber",
-              "date",
-              "driverName",
-              "driverCode",
-              "licenseNumber",
-              "driverContact",
-              "driverRole",
-            ].map((f) => (
-              <label key={f} className="block">
-                <span className="font-medium">{readableLabel(f)}</span>
-                <input
-                  {...register(f)}
-                  readOnly
-                  className="w-full p-2 border rounded bg-gray-100"
-                />
-              </label>
-            ))}
+            {/* Row 1 */}
+            <div className="flex flex-col">
+              <label className="font-medium">Vehicle Number</label>
+              <input
+                {...register("vehicleNumber")}
+                readOnly
+                className="w-full p-2 border rounded bg-gray-100"
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label className="font-medium">Date</label>
+              <input
+                {...register("date")}
+                readOnly
+                className="w-full p-2 border rounded bg-gray-100"
+              />
+            </div>
+
+            {/* Row 2 */}
+            <div className="flex flex-col">
+              <label className="font-medium">Driver Name</label>
+              <input
+                {...register("driverName")}
+                readOnly
+                className="w-full p-2 border rounded bg-gray-100"
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label className="font-medium">Driver Code</label>
+              <input
+                {...register("driverCode")}
+                readOnly
+                className="w-full p-2 border rounded bg-gray-100"
+              />
+            </div>
+
+            {/* Row 3 */}
+            <div className="flex flex-col">
+              <label className="font-medium">Driver Role</label>
+              <input
+                {...register("driverRole")}
+                readOnly
+                className="w-full p-2 border rounded bg-gray-100"
+              />
+            </div>
           </div>
 
-          {/* Mileage fields (stacked vertically) + Remarks on right */}
-          <div className="grid sm:grid-cols-2 gap-4 items-start">
-            {/* Left side - stacked mileage inputs */}
+          {/* === Lighting & Tools & Image Row === */}
+          <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-6 mt-4">
+            {/* Lighting */}
+            <div>
+              <h3 className="font-semibold text-indigo-700 mb-2">
+                Lighting & Electrical
+              </h3>
+              <div className="grid grid-cols-2 gap-1">
+                {lighting.map((i) => (
+                  <CheckboxItem
+                    key={i.id}
+                    name={i.name}
+                    label={i.name}
+                    control={control}
+                    readOnly={isReadonly || role === "Medic"}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Tools */}
+            <div>
+              <h3 className="font-semibold text-indigo-700 mb-2">
+                Tools & Exterior
+              </h3>
+              <div className="grid grid-cols-2 gap-1">
+                {tools.map((i) => (
+                  <CheckboxItem
+                    key={i.id}
+                    name={i.name}
+                    label={i.name}
+                    control={control}
+                    readOnly={isReadonly || role === "Medic"}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Ambulance Image with Clear Button */}
+            <div className="flex flex-col items-center">
+              <div className="relative" ref={imageRef}>
+                <img
+                  src={ambulanceImg}
+                  alt="Ambulance"
+                  onClick={handleImageClick}
+                  className="w-[280px] h-auto border rounded cursor-crosshair select-none shadow-sm"
+                />
+                {clickPoints.map((point, index) => (
+                  <div
+                    key={index}
+                    className="absolute text-green-500 font-bold text-lg"
+                    style={{
+                      top: `${point.y - 10}px`,
+                      left: `${point.x - 10}px`,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    ✕
+                  </div>
+                ))}
+              </div>
+
+              {/* Clear Marks Button */}
+              <button
+                type="button"
+                onClick={() => setClickPoints([])}
+                className="mt-3 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 rounded-lg shadow-md transition"
+              >
+                Clear Marks
+              </button>
+            </div>
+          </div>
+
+          {/* === Mileage + Remarks Row === */}
+          <div className="grid md:grid-cols-2 gap-6 mt-6">
+            {/* Left side - Mileage fields */}
             <div className="space-y-3">
               <label className="block">
                 <span className="font-medium">Mileage Start</span>
@@ -341,50 +466,16 @@ export default function ChecklistForm(): JSX.Element {
             </div>
 
             {/* Right side - Remarks */}
-            <label className="block">
-              <span className="font-medium">Remarks</span>
-              <textarea
-                {...register("driverRemarks")}
-                readOnly={isReadonly || role === "Medic"}
-                placeholder="Enter remarks..."
-                className="w-full border rounded p-2 h-[170px] mt-1"
-              />
-            </label>
-          </div>
-
-          {/* Lighting and Tools sections */}
-          <div className="grid md:grid-cols-2 gap-4 mt-3">
             <div>
-              <h3 className="font-semibold text-indigo-700 mb-2">
-                Lighting & Electrical
-              </h3>
-              <div className="grid grid-cols-2 gap-1">
-                {lighting.map((i) => (
-                  <CheckboxItem
-                    key={i.id}
-                    name={i.name}
-                    label={i.name}
-                    control={control}
-                    readOnly={isReadonly || role === "Medic"}
-                  />
-                ))}
-              </div>
-            </div>
-            <div>
-              <h3 className="font-semibold text-indigo-700 mb-2">
-                Tools & Exterior
-              </h3>
-              <div className="grid grid-cols-2 gap-1">
-                {tools.map((i) => (
-                  <CheckboxItem
-                    key={i.id}
-                    name={i.name}
-                    label={i.name}
-                    control={control}
-                    readOnly={isReadonly || role === "Medic"}
-                  />
-                ))}
-              </div>
+              <label className="block">
+                <span className="font-medium">Remarks</span>
+                <textarea
+                  {...register("driverRemarks")}
+                  readOnly={isReadonly || role === "Medic"}
+                  placeholder="Enter remarks..."
+                  className="w-full border rounded p-2 h-[150px] mt-1"
+                />
+              </label>
             </div>
           </div>
         </section>
