@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { EyeIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import {
@@ -9,6 +9,9 @@ import {
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import ambulanceImg from "../../assets/ambulance.jpeg";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { format } from "date-fns";
 
 export default function Transactions() {
   const dispatch = useAppDispatch();
@@ -22,22 +25,87 @@ export default function Transactions() {
   const [viewData, setViewData] = useState<Transaction | null>(null);
   const pdfRef = useRef<HTMLDivElement>(null);
 
+  // Add these helper states near top of component
+  const [fromDate, setFromDate] = useState<Date | null>(null);
+  const [toDate, setToDate] = useState<Date | null>(null);
+
+  // Sync formatted values to your filter logic
+  useEffect(() => {
+    setFilterFromDate(fromDate ? format(fromDate, "yyyy-MM-dd") : "");
+    setFilterToDate(toDate ? format(toDate, "yyyy-MM-dd") : "");
+  }, [fromDate, toDate]);
+
+  // const filteredData = list.filter((row: Transaction) => {
+  //   // Convert transaction date to local midnight
+  //   const tDate = new Date(row.transactionDate);
+  //   tDate.setHours(0, 0, 0, 0);
+
+  //   // From / To normalized
+  //   const from = filterFromDate ? new Date(filterFromDate) : null;
+  //   const to = filterToDate ? new Date(filterToDate) : null;
+  //   if (from) from.setHours(0, 0, 0, 0);
+  //   if (to) to.setHours(0, 0, 0, 0);
+
+  //   const matchesDate = (!from || tDate >= from) && (!to || tDate <= to);
+
+  //   const matchesSearch = globalSearch
+  //     ? [
+  //         row.driverName,
+  //         row.driverCode,
+  //         row.medicName,
+  //         row.medicCode,
+  //         row.vehicleNumber,
+  //       ]
+  //         .filter(Boolean)
+  //         .some((v) => v.toLowerCase().includes(globalSearch.toLowerCase()))
+  //     : true;
+
+  //   return matchesDate && matchesSearch;
+  // });
+
+  const getFilteredData = () => {
+    return list.filter((row: Transaction) => {
+      const tDate = new Date(row.transactionDate);
+      tDate.setHours(0, 0, 0, 0);
+
+      const from = filterFromDate ? new Date(filterFromDate) : null;
+      const to = filterToDate ? new Date(filterToDate) : null;
+      if (from) from.setHours(0, 0, 0, 0);
+      if (to) to.setHours(23, 59, 59, 999);
+
+      const matchesDate = (!from || tDate >= from) && (!to || tDate <= to);
+
+      const matchesSearch = globalSearch
+        ? [
+            row.driverName,
+            row.driverCode,
+            row.medicName,
+            row.medicCode,
+            row.vehicleNumber,
+          ]
+            .filter(Boolean)
+            .some((v) => v.toLowerCase().includes(globalSearch.toLowerCase()))
+        : true;
+
+      return matchesDate && matchesSearch;
+    });
+  };
+
+  const filteredData = useMemo(
+    () => getFilteredData(),
+    [list, filterFromDate, filterToDate, globalSearch]
+  );
+
+
   useEffect(() => {
     dispatch(fetchTransactions());
   }, [dispatch]);
 
-  const filteredData = list.filter((row: Transaction) => {
-    const tDate = new Date(row.transactionDate);
-    const from = filterFromDate ? new Date(filterFromDate) : null;
-    const to = filterToDate ? new Date(filterToDate) : null;
-    const matchesDate = (!from || tDate >= from) && (!to || tDate <= to);
-    const matchesSearch = globalSearch
-      ? [row.driverName, row.driverCode, row.medicName, row.medicCode, row.vehicleNumber]
-          .filter(Boolean)
-          .some((v) => v.toLowerCase().includes(globalSearch.toLowerCase()))
-      : true;
-    return matchesDate && matchesSearch;
-  });
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+    const [year, month, day] = dateString.split("-");
+    return `${day}-${month}-${year}`;
+  };
 
   const toggleSelectAll = () => {
     if (selectAll) setSelected([]);
@@ -135,7 +203,7 @@ export default function Transactions() {
           Delete Selected
         </button>
 
-        <div className="flex flex-wrap gap-2">
+        {/* <div className="flex flex-wrap gap-2">
           <input
             type="date"
             value={filterFromDate}
@@ -149,6 +217,39 @@ export default function Transactions() {
             onChange={(e) => setFilterToDate(e.target.value)}
             className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
           />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+            className="border p-2 rounded-lg text-sm w-60 focus:ring-2 focus:ring-indigo-400"
+          />
+        </div> */}
+        <div className="flex flex-wrap gap-3 items-center">
+          {/* === From Date === */}
+          <DatePicker
+            selected={fromDate}
+            onChange={(date) => setFromDate(date)}
+            dateFormat="dd-MM-yyyy"
+            placeholderText="DD-MM-YYYY"
+            className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
+            isClearable
+          />
+
+          <span className="text-gray-600 font-medium">to</span>
+
+          {/* === To Date === */}
+          <DatePicker
+            selected={toDate}
+            onChange={(date) => setToDate(date)}
+            dateFormat="dd-MM-yyyy"
+            placeholderText="DD-MM-YYYY"
+            className="border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
+            minDate={fromDate} // prevent selecting before fromDate
+            isClearable
+          />
+
+          {/* === Search Input === */}
           <input
             type="text"
             placeholder="Search..."
@@ -201,14 +302,20 @@ export default function Transactions() {
                     />
                   </td>
                   <td className="p-3">
-                    {new Date(row.transactionDate).toLocaleDateString("en-GB")}
+                    {new Date(row.transactionDate)
+                      .toLocaleDateString("en-GB")
+                      .replaceAll("/", "-")}
                   </td>
                   <td className="p-3">{row.vehicleNumber}</td>
                   <td className="p-3">
-                    {row.driverCode ? `${row.driverCode} - ${row.driverName}` : "-"}
+                    {row.driverCode
+                      ? `${row.driverCode} - ${row.driverName}`
+                      : "-"}
                   </td>
                   <td className="p-3">
-                    {row.medicCode ? `${row.medicCode} - ${row.medicName}` : "-"}
+                    {row.medicCode
+                      ? `${row.medicCode} - ${row.medicName}`
+                      : "-"}
                   </td>
                   <td className="p-3 text-center">
                     <button
@@ -247,43 +354,81 @@ export default function Transactions() {
           <section className="border border-gray-300 rounded-lg p-4 mb-6">
             <h2 className="font-semibold text-lg mb-3">Driver Details</h2>
             <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-              <p><strong>Vehicle Number:</strong> {viewData.vehicleNumber}</p>
-              <p><strong>Date:</strong> {new Date(viewData.transactionDate).toLocaleDateString("en-GB")}</p>
-              <p><strong>Driver Name:</strong> {viewData.driverName}</p>
-              <p><strong>Driver Code:</strong> {viewData.driverCode}</p>
-              <p><strong>License Number:</strong> {viewData.licenseNumber}</p>
-              <p><strong>Driver Contact:</strong> {viewData.driverContact}</p>
-              <p><strong>Driver Role:</strong> {viewData.driverRole}</p>
-              <p><strong>Mileage Start:</strong> {viewData.mileageStart}</p>
-              <p><strong>Next Service Mileage EO:</strong> {viewData.nextServiceMileageEo}</p>
-              <p><strong>ATF Oil:</strong> {viewData.atfoil}</p>
+              <p>
+                <strong>Vehicle Number:</strong> {viewData.vehicleNumber}
+              </p>
+              <p>
+                <strong>Date:</strong>{" "}
+                {new Date(viewData.transactionDate).toLocaleDateString("en-GB")}
+              </p>
+              <p>
+                <strong>Driver Name:</strong> {viewData.driverName}
+              </p>
+              <p>
+                <strong>Driver Code:</strong> {viewData.driverCode}
+              </p>
+              <p>
+                <strong>License Number:</strong> {viewData.licenseNumber}
+              </p>
+              <p>
+                <strong>Driver Contact:</strong> {viewData.driverContact}
+              </p>
+              <p>
+                <strong>Driver Role:</strong> {viewData.driverRole}
+              </p>
+              <p>
+                <strong>Mileage Start:</strong> {viewData.mileageStart}
+              </p>
+              <p>
+                <strong>Next Service Mileage EO:</strong>{" "}
+                {viewData.nextServiceMileageEo}
+              </p>
+              <p>
+                <strong>ATF Oil:</strong> {viewData.atfoil}
+              </p>
             </div>
-            <p className="mt-3"><strong>Remarks:</strong> {viewData.driverRemarks || "-"}</p>
+            <p className="mt-3">
+              <strong>Remarks:</strong> {viewData.driverRemarks || "-"}
+            </p>
           </section>
 
           {/* === Lighting, Tools & Image === */}
           <div className="grid grid-cols-3 gap-6 mb-6">
             <div>
-              <h3 className="font-semibold text-indigo-700 mb-2">Lighting & Electrical</h3>
+              <h3 className="font-semibold text-indigo-700 mb-2">
+                Lighting & Electrical
+              </h3>
               <ul className="grid grid-cols-2 text-sm">
                 {viewData.childTransactions
                   ?.filter((c) => c.categoryType === "LightingAndElectricals")
                   .map((c, i) => (
                     <li key={i}>
-                      <input type="checkbox" checked={!!c.checkStatus} readOnly /> {c.checkListItem}
+                      <input
+                        type="checkbox"
+                        checked={!!c.checkStatus}
+                        readOnly
+                      />{" "}
+                      {c.checkListItem}
                     </li>
                   ))}
               </ul>
             </div>
 
             <div>
-              <h3 className="font-semibold text-indigo-700 mb-2">Tools & Exterior</h3>
+              <h3 className="font-semibold text-indigo-700 mb-2">
+                Tools & Exterior
+              </h3>
               <ul className="grid grid-cols-2 text-sm">
                 {viewData.childTransactions
                   ?.filter((c) => c.categoryType === "ToolsAndExteriors")
                   .map((c, i) => (
                     <li key={i}>
-                      <input type="checkbox" checked={!!c.checkStatus} readOnly /> {c.checkListItem}
+                      <input
+                        type="checkbox"
+                        checked={!!c.checkStatus}
+                        readOnly
+                      />{" "}
+                      {c.checkListItem}
                     </li>
                   ))}
               </ul>
@@ -304,11 +449,19 @@ export default function Transactions() {
           <section className="border border-gray-300 rounded-lg p-4">
             <h2 className="font-semibold text-lg mb-3">Medic Section</h2>
             <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-              <p><strong>Medic Name:</strong> {viewData.medicName}</p>
-              <p><strong>Medic Code:</strong> {viewData.medicCode}</p>
-              <p><strong>Medic Contact:</strong> {viewData.medicContact}</p>
+              <p>
+                <strong>Medic Name:</strong> {viewData.medicName}
+              </p>
+              <p>
+                <strong>Medic Code:</strong> {viewData.medicCode}
+              </p>
+              <p>
+                <strong>Medic Contact:</strong> {viewData.medicContact}
+              </p>
             </div>
-            <p className="mt-3"><strong>Remarks:</strong> {viewData.medicRemarks || "-"}</p>
+            <p className="mt-3">
+              <strong>Remarks:</strong> {viewData.medicRemarks || "-"}
+            </p>
           </section>
         </div>
       )}

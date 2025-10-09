@@ -2,7 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-
 body {
   @apply bg-gray-100 text-gray-800;
+}
+
+.react-datepicker-wrapper {
+  width: auto;
+}
+
+.react-datepicker__input-container input {
+  width: 150px;
+  text-align: center;
 }

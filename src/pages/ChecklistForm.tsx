@@ -56,6 +56,8 @@ export default function ChecklistForm(): JSX.Element {
   const [transactionData, setTransactionData] = useState<any>(null);
 
   const role = localStorage.getItem("userRole") as "Driver" | "Medic";
+  console.log("role: ", role);
+
   const vehicleNumber = localStorage.getItem("vehicleNumber") || "";
   const userCode = localStorage.getItem("userCode") || "";
   const date =
@@ -103,7 +105,113 @@ export default function ChecklistForm(): JSX.Element {
   }, [base]);
 
   // ✅ Fetch Transaction / Prefill Driver or Medic Details
+  // useEffect(() => {
+  //   (async () => {
+  //     try {
+  //       setValue("vehicleNumber", vehicleNumber);
+  //       setValue("date", formatDate(date));
+
+  //       const res = await axios.get(`${base}/api/Transactions/by-vehicle`, {
+  //         params: { vehicleNumber, date },
+  //       });
+
+  //       if (res.data?.length > 0) {
+  //         const tx = res.data[0];
+  //         setTransactionData(tx);
+
+  //         if (role === "Driver") {
+  //           setDriverReadonly(true);
+  //           setMedicReadonly(true);
+  //         } else if (role === "Medic") {
+  //           setDriverReadonly(true);
+  //           setMedicReadonly(false);
+  //         }
+
+  //         // Prefill driver section
+  //         setValue("driverName", tx.driverName);
+  //         setValue("driverCode", tx.driverCode);
+  //         setValue("driverRole", tx.driverRole);
+  //         setValue("licenseNumber", tx.licenseNumber);
+  //         setValue("driverContact", tx.driverContact);
+  //         setValue("driverRemarks", tx.driverRemarks);
+
+  //         // Prefill medic section (readonly fields)
+  //         setValue("medicName", tx.medicName);
+  //         setValue("medicCode", tx.medicCode);
+  //         setValue("medicContact", tx.medicContact);
+  //         setValue("medicRemarks", tx.medicRemarks);
+
+  //         setValue("mileageStart", tx.mileageStart || "");
+  //         setValue("nextServiceMileageEo", tx.nextServiceMileageEo || "");
+  //         setValue("atfoil", tx.atfoil || "");
+
+  //         if (tx.coordinates?.length > 0) {
+  //           setClickPoints(
+  //             tx.coordinates.map((c: any) => ({
+  //               x: c.xaxis,
+  //               y: c.yaxis,
+  //             }))
+  //           );
+  //         }
+
+  //         tx.childTransactions?.forEach((c: any) => {
+  //           if (c.inputType === "Checkbox")
+  //             setValue(c.checkListItem, !!c.checkStatus);
+  //           if (c.inputType === "Value")
+  //             setValue(`${c.checkListItem}_qty`, c.quantity || "");
+  //         });
+  //         return;
+  //       }
+
+  //       // If no transaction found
+  //       if (role === "Driver") {
+  //         setDriverReadonly(false);
+  //         setMedicReadonly(true);
+  //         const driverRes = await axios.get(`${base}/api/Driver`);
+  //         const user = driverRes.data.find(
+  //           (d: any) => d.driverCode === userCode
+  //         );
+  //         if (user) {
+  //           setValue("driverName", user.name);
+  //           setValue("driverCode", user.driverCode);
+  //           setValue("driverRole", user.role);
+  //           setValue("licenseNumber", user.licenseNumber);
+  //           setValue("driverContact", user.contactNumber);
+  //         }
+  //       } else if (role === "Medic") {
+  //         console.log("role",role)
+  //         setDriverReadonly(true);
+  //         setMedicReadonly(false);
+
+  //         // ✅ Always fetch medic info and show (readonly)
+  //         const medicRes = await axios.get(`${base}/api/Medics`);
+  //         console.log('medicRes: ', medicRes);
+
+  //         const user = medicRes.data.find((m: any) => m.medicCode === userCode);
+  //         console.log('user: ', user);
+
+  //         if (user) {
+  //           setValue("medicName", user.name);
+  //           setValue("medicCode", user.medicCode);
+  //           setValue("medicContact", user.contactNumber);
+  //         }
+  //       }
+  //     } catch (err) {
+  //       console.error("Error fetching data:", err);
+  //     }
+  //   })();
+  // }, [role, userCode, base, vehicleNumber, date, setValue]);
   useEffect(() => {
+    const normalizedRole = (role || "").trim().replace(/^"|"$/g, "");
+    const normalizedUserCode = (userCode || "").trim().replace(/^"|"$/g, "");
+
+    console.log(
+      "Running useEffect with role:",
+      normalizedRole,
+      "userCode:",
+      normalizedUserCode
+    );
+
     (async () => {
       try {
         setValue("vehicleNumber", vehicleNumber);
@@ -117,10 +225,10 @@ export default function ChecklistForm(): JSX.Element {
           const tx = res.data[0];
           setTransactionData(tx);
 
-          if (role === "Driver") {
+          if (normalizedRole === "Driver") {
             setDriverReadonly(true);
             setMedicReadonly(true);
-          } else if (role === "Medic") {
+          } else if (normalizedRole === "Medic") {
             setDriverReadonly(true);
             setMedicReadonly(false);
           }
@@ -133,12 +241,36 @@ export default function ChecklistForm(): JSX.Element {
           setValue("driverContact", tx.driverContact);
           setValue("driverRemarks", tx.driverRemarks);
 
-          // Prefill medic section (readonly fields)
-          setValue("medicName", tx.medicName);
-          setValue("medicCode", tx.medicCode);
-          setValue("medicContact", tx.medicContact);
-          setValue("medicRemarks", tx.medicRemarks);
+          // ✅ If medic fields are empty, fetch medic data using userCode
+          if (!tx.medicCode && normalizedRole === "Medic") {
+            console.log(
+              "No medic info in transaction — fetching from /api/Medics..."
+            );
+            const medicRes = await axios.get(`${base}/api/Medics`);
+            const user = medicRes.data.find(
+              (m: any) => m.medicCode === normalizedUserCode
+            );
 
+            if (user) {
+              console.log("Medic found:", user);
+              setValue("medicName", user.name);
+              setValue("medicCode", user.medicCode);
+              setValue("medicContact", user.contactNumber);
+            } else {
+              console.warn(
+                "Medic not found in /api/Medics for code:",
+                normalizedUserCode
+              );
+            }
+          } else {
+            // Transaction has medic info — use it
+            setValue("medicName", tx.medicName);
+            setValue("medicCode", tx.medicCode);
+            setValue("medicContact", tx.medicContact);
+            setValue("medicRemarks", tx.medicRemarks);
+          }
+
+          // Other fields
           setValue("mileageStart", tx.mileageStart || "");
           setValue("nextServiceMileageEo", tx.nextServiceMileageEo || "");
           setValue("atfoil", tx.atfoil || "");
@@ -158,16 +290,18 @@ export default function ChecklistForm(): JSX.Element {
             if (c.inputType === "Value")
               setValue(`${c.checkListItem}_qty`, c.quantity || "");
           });
+
+          // 🟩 Return after all fields are set
           return;
         }
 
-        // If no transaction found
-        if (role === "Driver") {
+        // 🟥 If NO transaction found
+        if (normalizedRole === "Driver") {
           setDriverReadonly(false);
           setMedicReadonly(true);
           const driverRes = await axios.get(`${base}/api/Driver`);
           const user = driverRes.data.find(
-            (d: any) => d.driverCode === userCode
+            (d: any) => d.driverCode === normalizedUserCode
           );
           if (user) {
             setValue("driverName", user.name);
@@ -176,13 +310,13 @@ export default function ChecklistForm(): JSX.Element {
             setValue("licenseNumber", user.licenseNumber);
             setValue("driverContact", user.contactNumber);
           }
-        } else if (role === "Medic") {
+        } else if (normalizedRole === "Medic") {
           setDriverReadonly(true);
           setMedicReadonly(false);
-
-          // ✅ Always fetch medic info and show (readonly)
           const medicRes = await axios.get(`${base}/api/Medics`);
-          const user = medicRes.data.find((m: any) => m.medicCode === userCode);
+          const user = medicRes.data.find(
+            (m: any) => m.medicCode === normalizedUserCode
+          );
           if (user) {
             setValue("medicName", user.name);
             setValue("medicCode", user.medicCode);
@@ -194,6 +328,7 @@ export default function ChecklistForm(): JSX.Element {
       }
     })();
   }, [role, userCode, base, vehicleNumber, date, setValue]);
+
   // ✅ Submit Form
   const onSubmit = async (data: ChecklistFormData) => {
     try {
